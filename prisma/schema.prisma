@@ -1,0 +1,214 @@
+// This is your Prisma schema file,
+// learn more about it in the docs: https://pris.ly/d/prisma-schema
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+// User management
+model User {
+  id        String   @id @default(cuid())
+  email     String   @unique
+  name      String?
+  role      UserRole @default(USER)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  
+  // Relations
+  campaigns     Campaign[]
+  analytics     Analytics[]
+  apiKeys      ApiKey[]
+  aiRecommendations AIRecommendation[]
+  
+  @@map("users")
+}
+
+enum UserRole {
+  ADMIN
+  USER
+  MANAGER
+}
+
+// Google Ads API configuration
+model ApiKey {
+  id        String   @id @default(cuid())
+  name      String
+  key       String
+  isActive  Boolean  @default(true)
+  userId    String
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  
+  // Relations
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+  
+  @@map("api_keys")
+}
+
+// Campaign management
+model Campaign {
+  id          String   @id @default(cuid())
+  name        String
+  status      CampaignStatus @default(ACTIVE)
+  budget      Float?
+  startDate   DateTime?
+  endDate     DateTime?
+  targetAudience String?
+  userId      String
+  googleAdsId String?  @unique // Google Ads campaign ID - unique constraint
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+  
+  // Relations
+  user        User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  adGroups    AdGroup[]
+  analytics   Analytics[]
+  aiRecommendations AIRecommendation[]
+  
+  @@map("campaigns")
+}
+
+enum CampaignStatus {
+  ACTIVE
+  PAUSED
+  ENDED
+  DRAFT
+}
+
+// Ad Groups
+model AdGroup {
+  id          String   @id @default(cuid())
+  name        String
+  status      AdGroupStatus @default(ACTIVE)
+  campaignId  String
+  googleAdsId String?  // Google Ads ad group ID
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+  
+  // Relations
+  campaign    Campaign @relation(fields: [campaignId], references: [id], onDelete: Cascade)
+  ads        Ad[]
+  
+  @@map("ad_groups")
+}
+
+enum AdGroupStatus {
+  ACTIVE
+  PAUSED
+  REMOVED
+}
+
+// Ads
+model Ad {
+  id          String   @id @default(cuid())
+  name        String
+  type        AdType
+  status      AdStatus @default(ACTIVE)
+  headline1   String?
+  headline2   String?
+  headline3   String?
+  description String?
+  finalUrl    String?
+  adGroupId   String
+  googleAdsId String?  // Google Ads ad ID
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+  
+  // Relations
+  adGroup     AdGroup @relation(fields: [adGroupId], references: [id], onDelete: Cascade)
+  
+  @@map("ads")
+}
+
+enum AdType {
+  RESPONSIVE_SEARCH_AD
+  TEXT_AD
+  IMAGE_AD
+  VIDEO_AD
+}
+
+enum AdStatus {
+  ACTIVE
+  PAUSED
+  REMOVED
+  UNDER_REVIEW
+}
+
+// Analytics and performance data
+model Analytics {
+  id          String   @id @default(cuid())
+  date        DateTime
+  impressions Int      @default(0)
+  clicks      Int      @default(0)
+  cost        Float    @default(0)
+  conversions Int      @default(0)
+  conversionValue Float @default(0)
+  ctr         Float?   // Click-through rate
+  cpc         Float?   // Cost per click
+  cpm         Float?   // Cost per thousand impressions
+  userId      String?
+  campaignId  String?
+  createdAt   DateTime @default(now())
+  
+  // Relations
+  user        User?     @relation(fields: [userId], references: [id], onDelete: SetNull)
+  campaign    Campaign? @relation(fields: [campaignId], references: [id], onDelete: SetNull)
+  
+  @@map("analytics")
+}
+
+// AI recommendations and insights
+model AIRecommendation {
+  id          String   @id @default(cuid())
+  type        RecommendationType
+  title       String
+  description String
+  priority    Priority @default(MEDIUM)
+  isApplied   Boolean  @default(false)
+  campaignId  String?
+  userId      String?
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+  
+  // Relations
+  campaign    Campaign? @relation(fields: [campaignId], references: [id], onDelete: SetNull)
+  user        User?     @relation(fields: [userId], references: [id], onDelete: SetNull)
+  
+  @@map("ai_recommendations")
+}
+
+enum RecommendationType {
+  BUDGET_OPTIMIZATION
+  KEYWORD_OPTIMIZATION
+  AD_COPY_IMPROVEMENT
+  TARGETING_REFINEMENT
+  PERFORMANCE_ANALYSIS
+}
+
+enum Priority {
+  LOW
+  MEDIUM
+  HIGH
+  CRITICAL
+}
+
+// Audit logs
+model AuditLog {
+  id          String   @id @default(cuid())
+  action      String
+  entityType  String
+  entityId    String?
+  oldValues   Json?
+  newValues   Json?
+  userId      String?
+  ipAddress   String?
+  userAgent   String?
+  createdAt   DateTime @default(now())
+  
+  @@map("audit_logs")
+}

@@ -23,24 +23,56 @@ import {
   Pie,
   Cell
 } from 'recharts';
-
-const analyticsData = [
-  { name: 'Jan', value: 4000, conversions: 2400 },
-  { name: 'Feb', value: 3000, conversions: 1398 },
-  { name: 'Mar', value: 2000, conversions: 9800 },
-  { name: 'Apr', value: 2780, conversions: 3908 },
-  { name: 'May', value: 1890, conversions: 4800 },
-  { name: 'Jun', value: 2390, conversions: 3800 },
-];
-
-const pieData = [
-  { name: 'Direct', value: 35, color: '#3B82F6' },
-  { name: 'Social', value: 25, color: '#8B5CF6' },
-  { name: 'Email', value: 20, color: '#06B6D4' },
-  { name: 'Organic', value: 20, color: '#10B981' },
-];
+import { useQuery } from '@tanstack/react-query';
+import { analyticsApi } from '@/lib/api';
+import type { AnalyticsData, AnalyticsStats, TrafficSource } from '@/types/api';
 
 const Analytics = () => {
+  // Fetch analytics data
+  const { data: analyticsData = [], isLoading: analyticsLoading, error: analyticsError } = useQuery<AnalyticsData[]>({
+    queryKey: ['analytics'],
+    queryFn: analyticsApi.getAnalytics,
+  });
+
+  // Fetch analytics stats
+  const { data: analyticsStats, isLoading: statsLoading } = useQuery<AnalyticsStats>({
+    queryKey: ['analytics-stats'],
+    queryFn: analyticsApi.getStats,
+  });
+
+  // Fetch traffic sources
+  const { data: trafficSources = [], isLoading: trafficLoading } = useQuery<TrafficSource[]>({
+    queryKey: ['traffic-sources'],
+    queryFn: analyticsApi.getTrafficSources,
+  });
+
+  // Loading state
+  if (analyticsLoading || statsLoading || trafficLoading) {
+    return (
+      <div className="space-y-6">
+        <div className="flex items-center justify-center h-64">
+          <div className="text-center">
+            <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary mx-auto"></div>
+            <p className="mt-2 text-muted-foreground">Loading analytics...</p>
+          </div>
+        </div>
+      </div>
+    );
+  }
+
+  // Error state
+  if (analyticsError) {
+    return (
+      <div className="space-y-6">
+        <div className="flex items-center justify-center h-64">
+          <div className="text-center">
+            <p className="text-destructive">Error loading analytics data</p>
+            <p className="text-sm text-muted-foreground mt-1">Please try refreshing the page</p>
+          </div>
+        </div>
+      </div>
+    );
+  }
   return (
     <div className="space-y-6">
       {/* Header */}
@@ -61,28 +93,28 @@ const Analytics = () => {
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
         <StatCard
           title="Total Users"
-          value="12,459"
+          value={analyticsStats?.totalUsers || "0"}
           change="+12.5% from last month"
           trend="up"
           icon={Users}
         />
         <StatCard
           title="Revenue"
-          value="$89,432"
+          value={analyticsStats?.revenue || "$0"}
           change="+8.2% from last month"
           trend="up"
           icon={DollarSign}
         />
         <StatCard
           title="Conversion Rate"
-          value="3.24%"
+          value={analyticsStats?.conversionRate || "0%"}
           change="+0.8% from last month"
           trend="up"
           icon={TrendingUp}
         />
         <StatCard
           title="AI Score"
-          value="94.2"
+          value={analyticsStats?.aiScore || "0"}
           change="+2.1 from last week"
           trend="up"
           icon={Target}
@@ -180,7 +212,7 @@ const Analytics = () => {
             <ResponsiveContainer width="100%" height={250}>
               <PieChart>
                 <Pie
-                  data={pieData}
+                  data={trafficSources}
                   cx="50%"
                   cy="50%"
                   outerRadius={80}
@@ -188,7 +220,7 @@ const Analytics = () => {
                   labelLine={false}
                   label={({ name, percent }) => `${name} ${(percent * 100).toFixed(0)}%`}
                 >
-                  {pieData.map((entry, index) => (
+                  {trafficSources.map((entry, index) => (
                     <Cell key={`cell-${index}`} fill={entry.color} />
                   ))}
                 </Pie>

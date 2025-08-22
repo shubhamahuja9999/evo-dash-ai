@@ -16,61 +16,11 @@ import {
   DropdownMenuItem,
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu';
+import { useQuery } from '@tanstack/react-query';
+import { campaignsApi } from '@/lib/api';
+import type { Campaign, CampaignStats } from '@/types/api';
 
-const campaigns = [
-  {
-    id: 1,
-    name: "Summer Sale 2024",
-    status: "active",
-    budget: "$5,000",
-    spent: "$3,200",
-    impressions: "125K",
-    clicks: "8.2K",
-    ctr: "6.56%",
-    conversions: 234,
-    startDate: "2024-06-01",
-    endDate: "2024-08-31"
-  },
-  {
-    id: 2,
-    name: "Product Launch Campaign",
-    status: "paused",
-    budget: "$2,500",
-    spent: "$1,800",
-    impressions: "87K",
-    clicks: "5.1K",
-    ctr: "5.86%",
-    conversions: 156,
-    startDate: "2024-07-15",
-    endDate: "2024-09-15"
-  },
-  {
-    id: 3,
-    name: "Brand Awareness Drive",
-    status: "completed",
-    budget: "$1,000",
-    spent: "$1,000",
-    impressions: "245K",
-    clicks: "12.3K",
-    ctr: "5.02%",
-    conversions: 389,
-    startDate: "2024-05-01",
-    endDate: "2024-06-30"
-  },
-  {
-    id: 4,
-    name: "Holiday Promotion",
-    status: "draft",
-    budget: "$8,000",
-    spent: "$0",
-    impressions: "0",
-    clicks: "0",
-    ctr: "0%",
-    conversions: 0,
-    startDate: "2024-12-01",
-    endDate: "2024-12-31"
-  }
-];
+
 
 const getStatusColor = (status: string) => {
   switch (status) {
@@ -83,6 +33,45 @@ const getStatusColor = (status: string) => {
 };
 
 const Campaigns = () => {
+  // Fetch campaigns data
+  const { data: campaigns = [], isLoading: campaignsLoading, error: campaignsError } = useQuery<Campaign[]>({
+    queryKey: ['campaigns'],
+    queryFn: campaignsApi.getCampaigns,
+  });
+
+  // Fetch campaign stats
+  const { data: campaignStats, isLoading: statsLoading } = useQuery<CampaignStats>({
+    queryKey: ['campaign-stats'],
+    queryFn: campaignsApi.getStats,
+  });
+
+  // Loading state
+  if (campaignsLoading || statsLoading) {
+    return (
+      <div className="space-y-6">
+        <div className="flex items-center justify-center h-64">
+          <div className="text-center">
+            <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary mx-auto"></div>
+            <p className="mt-2 text-muted-foreground">Loading campaigns...</p>
+          </div>
+        </div>
+      </div>
+    );
+  }
+
+  // Error state
+  if (campaignsError) {
+    return (
+      <div className="space-y-6">
+        <div className="flex items-center justify-center h-64">
+          <div className="text-center">
+            <p className="text-destructive">Error loading campaigns data</p>
+            <p className="text-sm text-muted-foreground mt-1">Please try refreshing the page</p>
+          </div>
+        </div>
+      </div>
+    );
+  }
   return (
     <div className="space-y-6">
       {/* Header */}
