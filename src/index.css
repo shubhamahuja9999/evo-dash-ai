@@ -71,18 +71,16 @@ All colors MUST be HSL.
     --transition-smooth: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
     --transition-fast: all 0.15s ease-out;
 
+    /* Sidebar Colors */
+    --sidebar-background: 240 8% 6%;
+    --sidebar-foreground: 0 0% 98%;
+    --sidebar-primary: 217 91% 60%;
+    --sidebar-primary-foreground: 0 0% 98%;
+    --sidebar-accent: 240 5% 20%;
+    --sidebar-accent-foreground: 0 0% 98%;
+    --sidebar-border: 240 4% 16%;
+    --sidebar-ring: 217 91% 60%;
   }
-
-  /* Sidebar Colors */
-  --sidebar-background: 240 8% 6%;
-  --sidebar-foreground: 0 0% 98%;
-  --sidebar-primary: 217 91% 60%;
-  --sidebar-primary-foreground: 0 0% 98%;
-  --sidebar-accent: 240 5% 20%;
-  --sidebar-accent-foreground: 0 0% 98%;
-  --sidebar-border: 240 4% 16%;
-  --sidebar-ring: 217 91% 60%;
-}
 }
 
 @layer base {
