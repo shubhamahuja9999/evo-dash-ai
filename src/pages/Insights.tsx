@@ -13,69 +13,11 @@ import {
   Users,
   BarChart3
 } from 'lucide-react';
+import { useQuery } from '@tanstack/react-query';
+import { insightsApi } from '@/lib/api';
+import type { Insight, InsightStats } from '@/types/api';
 
-const insights = [
-  {
-    id: 1,
-    type: 'opportunity',
-    priority: 'high',
-    title: 'Increase Social Media Budget',
-    description: 'Social media campaigns are performing 35% better than other channels. Consider reallocating 20% of your email budget to social platforms.',
-    impact: '+$2,400 estimated monthly revenue',
-    confidence: 94,
-    category: 'Budget Optimization',
-    icon: TrendingUp,
-    color: 'text-success'
-  },
-  {
-    id: 2,
-    type: 'alert',
-    priority: 'high',
-    title: 'Declining Email Performance',
-    description: 'Email open rates have dropped 15% over the past month. Subject line optimization and audience segmentation recommended.',
-    impact: 'Potential 25% improvement in engagement',
-    confidence: 87,
-    category: 'Campaign Performance',
-    icon: AlertTriangle,
-    color: 'text-warning'
-  },
-  {
-    id: 3,
-    type: 'insight',
-    priority: 'medium',
-    title: 'Peak Engagement Hours Identified',
-    description: 'User engagement peaks between 2-4 PM and 7-9 PM. Schedule content during these windows for maximum impact.',
-    impact: '+18% average engagement rate',
-    confidence: 92,
-    category: 'Timing Optimization',
-    icon: Clock,
-    color: 'text-primary'
-  },
-  {
-    id: 4,
-    type: 'recommendation',
-    priority: 'medium',
-    title: 'Audience Segment Discovery',
-    description: 'A new high-value audience segment (ages 25-34, tech industry) shows 3x higher conversion rates. Expand targeting to similar profiles.',
-    impact: '+$1,800 estimated monthly revenue',
-    confidence: 78,
-    category: 'Audience Targeting',
-    icon: Users,
-    color: 'text-accent-purple'
-  },
-  {
-    id: 5,
-    type: 'success',
-    priority: 'low',
-    title: 'Campaign Goals Exceeded',
-    description: 'Your "Summer Sale 2024" campaign exceeded conversion goals by 23%. Similar creative elements should be applied to future campaigns.',
-    impact: 'Maintain current performance',
-    confidence: 96,
-    category: 'Creative Optimization',
-    icon: CheckCircle,
-    color: 'text-success'
-  }
-];
+
 
 const getPriorityColor = (priority: string) => {
   switch (priority) {
@@ -98,6 +40,45 @@ const getTypeIcon = (type: string) => {
 };
 
 const Insights = () => {
+  // Fetch insights data
+  const { data: insights = [], isLoading: insightsLoading, error: insightsError } = useQuery<Insight[]>({
+    queryKey: ['insights'],
+    queryFn: insightsApi.getInsights,
+  });
+
+  // Fetch insight stats
+  const { data: insightStats, isLoading: statsLoading } = useQuery<InsightStats>({
+    queryKey: ['insight-stats'],
+    queryFn: insightsApi.getStats,
+  });
+
+  // Loading state
+  if (insightsLoading || statsLoading) {
+    return (
+      <div className="space-y-6">
+        <div className="flex items-center justify-center h-64">
+          <div className="text-center">
+            <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary mx-auto"></div>
+            <p className="mt-2 text-muted-foreground">Loading insights...</p>
+          </div>
+        </div>
+      </div>
+    );
+  }
+
+  // Error state
+  if (insightsError) {
+    return (
+      <div className="space-y-6">
+        <div className="flex items-center justify-center h-64">
+          <div className="text-center">
+            <p className="text-destructive">Error loading insights data</p>
+            <p className="text-sm text-muted-foreground mt-1">Please try refreshing the page</p>
+          </div>
+        </div>
+      </div>
+    );
+  }
   return (
     <div className="space-y-6">
       {/* Header */}
@@ -124,7 +105,7 @@ const Insights = () => {
               </div>
               <div>
                 <p className="text-sm text-muted-foreground">Total Insights</p>
-                <p className="text-2xl font-bold">24</p>
+                <p className="text-2xl font-bold">{insightStats?.totalInsights || 0}</p>
               </div>
             </div>
           </CardContent>
@@ -138,7 +119,7 @@ const Insights = () => {
               </div>
               <div>
                 <p className="text-sm text-muted-foreground">High Priority</p>
-                <p className="text-2xl font-bold">5</p>
+                <p className="text-2xl font-bold">{insightStats?.highPriority || 0}</p>
               </div>
             </div>
           </CardContent>
@@ -152,7 +133,7 @@ const Insights = () => {
               </div>
               <div>
                 <p className="text-sm text-muted-foreground">Opportunities</p>
-                <p className="text-2xl font-bold">12</p>
+                <p className="text-2xl font-bold">{insightStats?.opportunities || 0}</p>
               </div>
             </div>
           </CardContent>
@@ -166,7 +147,7 @@ const Insights = () => {
               </div>
               <div>
                 <p className="text-sm text-muted-foreground">Avg. Confidence</p>
-                <p className="text-2xl font-bold">89%</p>
+                <p className="text-2xl font-bold">{insightStats?.avgConfidence || 0}%</p>
               </div>
             </div>
           </CardContent>

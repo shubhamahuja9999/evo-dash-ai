@@ -10,80 +10,71 @@ async function main() {
     create: {
       email: 'test@example.com',
       name: 'Test User',
+      role: 'USER',
     },
   });
 
-  // Create sample campaigns
+  // Create sample campaigns (amounts in Indian Rupees)
   const campaigns = [
     {
       name: "Summer Sale 2024",
       status: "ACTIVE" as const,
-      budget: 5000,
-      spent: 3200,
-      impressions: 125000,
-      clicks: 8200,
-      conversions: 234,
+      budget: 415000, // ₹4,15,000 (approx $5000)
       startDate: new Date("2024-06-01"),
       endDate: new Date("2024-08-31"),
+      targetAudience: "E-commerce shoppers",
       userId: user.id,
     },
     {
       name: "Product Launch Campaign",
       status: "PAUSED" as const,
-      budget: 2500,
-      spent: 1800,
-      impressions: 87000,
-      clicks: 5100,
-      conversions: 156,
+      budget: 207500, // ₹2,07,500 (approx $2500)
       startDate: new Date("2024-07-15"),
       endDate: new Date("2024-09-15"),
+      targetAudience: "Tech enthusiasts",
       userId: user.id,
     },
     {
       name: "Brand Awareness Drive",
-      status: "COMPLETED" as const,
-      budget: 1000,
-      spent: 1000,
-      impressions: 245000,
-      clicks: 12300,
-      conversions: 389,
+      status: "ENDED" as const,
+      budget: 83000, // ₹83,000 (approx $1000)
       startDate: new Date("2024-05-01"),
       endDate: new Date("2024-06-30"),
+      targetAudience: "General audience",
       userId: user.id,
     },
     {
       name: "Holiday Promotion",
       status: "DRAFT" as const,
-      budget: 8000,
-      spent: 0,
-      impressions: 0,
-      clicks: 0,
-      conversions: 0,
+      budget: 664000, // ₹6,64,000 (approx $8000)
       startDate: new Date("2024-12-01"),
       endDate: new Date("2024-12-31"),
+      targetAudience: "Holiday shoppers",
       userId: user.id,
     }
   ];
 
-  for (const campaign of campaigns) {
-    await prisma.campaign.upsert({
-      where: { id: campaign.name + "-" + user.id },
+  const createdCampaigns: any[] = [];
+  for (const campaignData of campaigns) {
+    const campaign = await prisma.campaign.upsert({
+      where: { id: campaignData.name.replace(/\s+/g, '-').toLowerCase() + "-" + user.id },
       update: {},
       create: {
-        ...campaign,
-        id: campaign.name + "-" + user.id,
+        ...campaignData,
+        id: campaignData.name.replace(/\s+/g, '-').toLowerCase() + "-" + user.id,
       },
     });
+    createdCampaigns.push(campaign);
   }
 
-  // Create sample analytics data
+  // Create sample analytics data (amounts in Indian Rupees)
   const analyticsData = [
-    { name: 'Jan', value: 4000, conversions: 2400, revenue: 12000, users: 1200 },
-    { name: 'Feb', value: 3000, conversions: 1398, revenue: 8500, users: 980 },
-    { name: 'Mar', value: 2000, conversions: 9800, revenue: 25000, users: 2100 },
-    { name: 'Apr', value: 2780, conversions: 3908, revenue: 15600, users: 1650 },
-    { name: 'May', value: 1890, conversions: 4800, revenue: 18900, users: 1800 },
-    { name: 'Jun', value: 2390, conversions: 3800, revenue: 14200, users: 1420 },
+    { month: 'Jan', impressions: 125000, clicks: 8200, cost: 265600, conversions: 234, conversionValue: 996000 }, // ₹2,65,600 cost, ₹9,96,000 revenue
+    { month: 'Feb', impressions: 87000, clicks: 5100, cost: 149400, conversions: 156, conversionValue: 705500 }, // ₹1,49,400 cost, ₹7,05,500 revenue
+    { month: 'Mar', impressions: 245000, clicks: 12300, cost: 373500, conversions: 389, conversionValue: 2075000 }, // ₹3,73,500 cost, ₹20,75,000 revenue
+    { month: 'Apr', impressions: 156000, clicks: 9200, cost: 315400, conversions: 278, conversionValue: 1294800 }, // ₹3,15,400 cost, ₹12,94,800 revenue
+    { month: 'May', impressions: 189000, clicks: 11400, cost: 348600, conversions: 342, conversionValue: 1567500 }, // ₹3,48,600 cost, ₹15,67,500 revenue
+    { month: 'Jun', impressions: 142000, clicks: 8900, cost: 298800, conversions: 251, conversionValue: 1178600 }, // ₹2,98,800 cost, ₹11,78,600 revenue
   ];
 
   for (let i = 0; i < analyticsData.length; i++) {
@@ -96,93 +87,72 @@ async function main() {
       create: {
         id: `analytics-${i}-${user.id}`,
         date,
-        value: data.value,
+        impressions: data.impressions,
+        clicks: data.clicks,
+        cost: data.cost,
         conversions: data.conversions,
-        revenue: data.revenue,
-        users: data.users,
+        conversionValue: data.conversionValue,
+        ctr: data.clicks / data.impressions,
+        cpc: data.cost / data.clicks,
+        cpm: (data.cost / data.impressions) * 1000,
         userId: user.id,
+        campaignId: createdCampaigns[i % createdCampaigns.length]?.id,
       },
     });
   }
 
-  // Create sample insights
-  const insights = [
+  // Create sample AI recommendations
+  const recommendations = [
     {
-      type: "OPPORTUNITY" as const,
+      type: "BUDGET_OPTIMIZATION" as const,
       priority: "HIGH" as const,
       title: "Increase Social Media Budget",
       description: "Social media campaigns are performing 35% better than other channels. Consider reallocating 20% of your email budget to social platforms.",
-      impact: "+$2,400 estimated monthly revenue",
-      confidence: 94,
-      category: "Budget Optimization",
+      campaignId: createdCampaigns[0]?.id,
+      userId: user.id,
     },
     {
-      type: "ALERT" as const,
+      type: "PERFORMANCE_ANALYSIS" as const,
       priority: "HIGH" as const,
       title: "Declining Email Performance",
       description: "Email open rates have dropped 15% over the past month. Subject line optimization and audience segmentation recommended.",
-      impact: "Potential 25% improvement in engagement",
-      confidence: 87,
-      category: "Campaign Performance",
+      campaignId: createdCampaigns[1]?.id,
+      userId: user.id,
     },
     {
-      type: "INSIGHT" as const,
+      type: "TARGETING_REFINEMENT" as const,
       priority: "MEDIUM" as const,
       title: "Peak Engagement Hours Identified",
       description: "User engagement peaks between 2-4 PM and 7-9 PM. Schedule content during these windows for maximum impact.",
-      impact: "+18% average engagement rate",
-      confidence: 92,
-      category: "Timing Optimization",
+      campaignId: createdCampaigns[2]?.id,
+      userId: user.id,
     },
     {
-      type: "RECOMMENDATION" as const,
+      type: "KEYWORD_OPTIMIZATION" as const,
       priority: "MEDIUM" as const,
       title: "Audience Segment Discovery",
       description: "A new high-value audience segment (ages 25-34, tech industry) shows 3x higher conversion rates. Expand targeting to similar profiles.",
-      impact: "+$1,800 estimated monthly revenue",
-      confidence: 78,
-      category: "Audience Targeting",
+      campaignId: createdCampaigns[0]?.id,
+      userId: user.id,
     },
     {
-      type: "SUCCESS" as const,
+      type: "AD_COPY_IMPROVEMENT" as const,
       priority: "LOW" as const,
       title: "Campaign Goals Exceeded",
       description: "Your 'Summer Sale 2024' campaign exceeded conversion goals by 23%. Similar creative elements should be applied to future campaigns.",
-      impact: "Maintain current performance",
-      confidence: 96,
-      category: "Creative Optimization",
+      campaignId: createdCampaigns[0]?.id,
+      userId: user.id,
     }
   ];
 
-  for (let i = 0; i < insights.length; i++) {
-    const insight = insights[i];
-    await prisma.insight.upsert({
-      where: { id: `insight-${i}` },
+  for (let i = 0; i < recommendations.length; i++) {
+    const recommendation = recommendations[i];
+    await prisma.aIRecommendation.upsert({
+      where: { id: `recommendation-${i}` },
       update: {},
       create: {
-        ...insight,
-        id: `insight-${i}`,
-      },
-    });
-  }
-
-  // Create sample traffic sources
-  const trafficSources = [
-    { name: 'Direct', value: 35, color: '#3B82F6' },
-    { name: 'Social', value: 25, color: '#8B5CF6' },
-    { name: 'Email', value: 20, color: '#06B6D4' },
-    { name: 'Organic', value: 20, color: '#10B981' },
-  ];
-
-  for (let i = 0; i < trafficSources.length; i++) {
-    const source = trafficSources[i];
-    await prisma.trafficSource.upsert({
-      where: { id: `traffic-${i}` },
-      update: {},
-      create: {
-        ...source,
-        id: `traffic-${i}`,
-        date: new Date(),
+        ...recommendation,
+        id: `recommendation-${i}`,
       },
     });
   }

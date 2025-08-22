@@ -1,3 +1,4 @@
+import CUAChat from '@/components/ui/cua-chat';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
@@ -17,6 +18,7 @@ import {
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu';
 import { useQuery } from '@tanstack/react-query';
+import { useNavigate } from 'react-router-dom';
 import { campaignsApi } from '@/lib/api';
 import type { Campaign, CampaignStats } from '@/types/api';
 
@@ -33,6 +35,8 @@ const getStatusColor = (status: string) => {
 };
 
 const Campaigns = () => {
+  const navigate = useNavigate();
+
   // Fetch campaigns data
   const { data: campaigns = [], isLoading: campaignsLoading, error: campaignsError } = useQuery<Campaign[]>({
     queryKey: ['campaigns'],
@@ -82,10 +86,7 @@ const Campaigns = () => {
             Manage and optimize your marketing campaigns
           </p>
         </div>
-        <Button className="bg-gradient-primary hover:opacity-90 glow">
-          <Zap className="w-4 h-4 mr-2" />
-          CUA Optimization
-        </Button>
+        <CUAChat />
       </div>
 
       {/* Quick Stats */}
@@ -98,7 +99,7 @@ const Campaigns = () => {
               </div>
               <div>
                 <p className="text-sm text-muted-foreground">Active Campaigns</p>
-                <p className="text-2xl font-bold">12</p>
+                <p className="text-2xl font-bold">{campaignStats?.activeCampaigns || 0}</p>
               </div>
             </div>
           </CardContent>
@@ -112,7 +113,7 @@ const Campaigns = () => {
               </div>
               <div>
                 <p className="text-sm text-muted-foreground">Total Conversions</p>
-                <p className="text-2xl font-bold">1,247</p>
+                <p className="text-2xl font-bold">{campaignStats?.totalConversions || "0"}</p>
               </div>
             </div>
           </CardContent>
@@ -126,7 +127,7 @@ const Campaigns = () => {
               </div>
               <div>
                 <p className="text-sm text-muted-foreground">Total Impressions</p>
-                <p className="text-2xl font-bold">2.4M</p>
+                <p className="text-2xl font-bold">{campaignStats?.totalImpressions || "0"}</p>
               </div>
             </div>
           </CardContent>
@@ -140,7 +141,7 @@ const Campaigns = () => {
               </div>
               <div>
                 <p className="text-sm text-muted-foreground">Avg. CTR</p>
-                <p className="text-2xl font-bold">5.84%</p>
+                <p className="text-2xl font-bold">{campaignStats?.avgCTR || "0%"}</p>
               </div>
             </div>
           </CardContent>
@@ -220,7 +221,12 @@ const Campaigns = () => {
                     <p className="font-semibold">{campaign.conversions}</p>
                   </div>
                   <div className="flex justify-end">
-                    <Button size="sm" variant="outline" className="hover:bg-primary hover:text-primary-foreground">
+                    <Button 
+                      size="sm" 
+                      variant="outline" 
+                      className="hover:bg-primary hover:text-primary-foreground"
+                      onClick={() => navigate(`/campaigns/${campaign.id}`)}
+                    >
                       View Details
                     </Button>
                   </div>
