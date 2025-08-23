@@ -12,27 +12,34 @@ const AIMessageBar = ({ onClose }: AIMessageBarProps) => {
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const [isFocused, setIsFocused] = useState<boolean>(false);
 
-  // Simulate AI typing effect
-  const simulateResponse = (userMessage: string) => {
+  // Get AI response from the server
+  const getAIResponse = async (userMessage: string) => {
     setIsTyping(true);
     
-    // Simulate different responses based on input
-    let response = "Hi there! I'm your AI assistant. How can I help you optimize your campaigns?";
-    
-    if (userMessage.toLowerCase().includes("hello") || userMessage.toLowerCase().includes("hi")) {
-      response = "Hello! I'm your campaign optimization assistant. How can I help improve your performance?";
-    } else if (userMessage.toLowerCase().includes("help")) {
-      response = "I can help you optimize budgets, analyze performance, improve targeting, and more. What would you like to focus on?";
-    } else if (userMessage.toLowerCase().includes("thank")) {
-      response = "You're welcome! Let me know if you need any other campaign optimizations!";
-    } else if (userMessage.toLowerCase().includes("budget")) {
-      response = "I can help analyze your budget allocation. Would you like to see opportunities for better ROI?";
-    }
-    
-    setTimeout(() => {
+    try {
+      const response = await fetch(`${import.meta.env.VITE_API_BASE_URL}/api/chat`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({ message: userMessage }),
+      });
+
+      if (!response.ok) {
+        throw new Error('Failed to get AI response');
+      }
+
+      const data = await response.json();
       setIsTyping(false);
-      setMessages((prev) => [...prev, { text: response, isUser: false }]);
-    }, 1500);
+      setMessages((prev) => [...prev, { text: data.response, isUser: false }]);
+    } catch (error) {
+      console.error('Error getting AI response:', error);
+      setIsTyping(false);
+      setMessages((prev) => [...prev, { 
+        text: "I apologize, but I'm having trouble connecting to my AI services right now. Please try again later.", 
+        isUser: false 
+      }]);
+    }
   };
 
   const handleSubmit = (e?: React.FormEvent) => {
@@ -44,7 +51,7 @@ const AIMessageBar = ({ onClose }: AIMessageBarProps) => {
     setMessages((prev) => [...prev, { text: userMessage, isUser: true }]);
     setInput("");
     
-    simulateResponse(userMessage);
+    getAIResponse(userMessage);
   };
 
   const clearChat = () => {

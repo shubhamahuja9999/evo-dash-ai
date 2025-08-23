@@ -1,6 +1,7 @@
 import express from 'express';
 import cors from 'cors';
 import { PrismaClient } from '@prisma/client';
+import { generateAIResponse } from './openai';
 
 const app = express();
 const prisma = new PrismaClient();
@@ -254,6 +255,36 @@ app.get('/api/insights/stats', async (req, res) => {
   } catch (error) {
     console.error('Error fetching insight stats:', error);
     res.status(500).json({ error: 'Failed to fetch insight stats' });
+  }
+});
+
+// AI Chat endpoint
+app.post('/api/chat', async (req, res) => {
+  try {
+    const { message, campaignId } = req.body;
+
+    // Get relevant campaign data if campaignId is provided
+    let context = {};
+    if (campaignId) {
+      const campaign = await prisma.campaign.findUnique({
+        where: { id: campaignId },
+        include: {
+          analytics: true,
+        },
+      });
+      if (campaign) {
+        context = {
+          campaignData: campaign,
+          analyticsData: campaign.analytics,
+        };
+      }
+    }
+
+    const response = await generateAIResponse(message, context);
+    res.json({ response });
+  } catch (error) {
+    console.error('Chat API Error:', error);
+    res.status(500).json({ error: 'Failed to generate AI response' });
   }
 });
 
