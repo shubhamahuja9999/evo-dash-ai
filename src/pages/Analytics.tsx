@@ -1,13 +1,20 @@
+import React, { useState, useEffect } from 'react';
 import { Button } from '@/components/ui/button';
 import { StatCard } from '@/components/ui/stat-card';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { Badge } from '@/components/ui/badge';
+import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
 import { 
   BarChart3, 
   Users, 
   TrendingUp, 
   DollarSign,
   Zap,
-  Target
+  Target,
+  Terminal,
+  Shield,
+  Activity,
+  RefreshCw
 } from 'lucide-react';
 import {
   LineChart,
@@ -26,8 +33,15 @@ import {
 import { useQuery } from '@tanstack/react-query';
 import { analyticsApi } from '@/lib/api';
 import type { AnalyticsData, AnalyticsStats, TrafficSource } from '@/types/api';
+import { CUADashboard } from '../components/cua-dashboard';
+import { EmbeddedAutomation } from '../components/ui/embedded-automation';
 
 const Analytics = () => {
+  const [isCUAOpen, setIsCUAOpen] = useState(false);
+  const [showAutomation, setShowAutomation] = useState(false);
+  const [automationType, setAutomationType] = useState<'cua' | 'campaign-fetch'>('cua');
+  const [isAutomationMinimized, setIsAutomationMinimized] = useState(false);
+
   // Fetch analytics data
   const { data: analyticsData = [], isLoading: analyticsLoading, error: analyticsError } = useQuery<AnalyticsData[]>({
     queryKey: ['analytics'],
@@ -83,10 +97,54 @@ const Analytics = () => {
             Advanced insights powered by machine learning
           </p>
         </div>
-        <Button className="bg-gradient-primary hover:opacity-90 glow">
-          <Zap className="w-4 h-4 mr-2" />
-          CUA Optimization
-        </Button>
+        <div className="flex gap-2">
+          <Button 
+            variant="outline" 
+            onClick={() => {
+              setAutomationType('campaign-fetch');
+              setShowAutomation(true);
+              setIsAutomationMinimized(false);
+            }}
+            className="flex items-center gap-1"
+          >
+            <RefreshCw className="w-4 h-4" />
+            Fetch Campaigns
+          </Button>
+          
+          <Dialog open={isCUAOpen} onOpenChange={setIsCUAOpen}>
+            <DialogTrigger asChild>
+              <Button className="bg-gradient-primary hover:opacity-90 glow">
+                <Zap className="w-4 h-4 mr-2" />
+                CUA Optimization
+              </Button>
+            </DialogTrigger>
+            <DialogContent className="max-w-6xl max-h-[90vh] overflow-y-auto">
+              <DialogHeader>
+                <DialogTitle className="flex items-center gap-2">
+                  <Terminal className="w-5 h-5" />
+                  CUA Dashboard - Command User Access Control
+                </DialogTitle>
+                <DialogDescription>
+                  Execute commands, manage user access, and monitor security audits for the Google Ads dashboard
+                </DialogDescription>
+              </DialogHeader>
+              <CUADashboard />
+            </DialogContent>
+          </Dialog>
+          
+          <Button 
+            variant="outline" 
+            onClick={() => {
+              setAutomationType('cua');
+              setShowAutomation(true);
+              setIsAutomationMinimized(false);
+            }}
+            className="flex items-center gap-1"
+          >
+            <Terminal className="w-4 h-4" />
+            Live Automation
+          </Button>
+        </div>
       </div>
 
       {/* Stats Grid */}
@@ -264,6 +322,15 @@ const Analytics = () => {
           </CardContent>
         </Card>
       </div>
+      {/* Embedded Automation Window */}
+      <EmbeddedAutomation
+        isOpen={showAutomation}
+        onClose={() => setShowAutomation(false)}
+        onMinimize={() => setIsAutomationMinimized(!isAutomationMinimized)}
+        isMinimized={isAutomationMinimized}
+        automationType={automationType}
+        title={automationType === 'cua' ? 'Google Ads CUA Automation' : 'Campaign Data Fetch'}
+      />
     </div>
   );
 };

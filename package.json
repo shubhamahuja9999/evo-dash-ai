@@ -14,7 +14,8 @@
     "db:studio": "prisma studio",
     "db:seed": "tsx prisma/seed.ts",
     "server": "tsx server/index.ts",
-    "server:dev": "tsx --watch server/index.ts"
+    "server:dev": "tsx --watch server/index.ts",
+    "setup:cua": "node setup_cua_automation.js"
   },
   "dependencies": {
     "@hookform/resolvers": "^3.10.0",
@@ -50,13 +51,14 @@
     "class-variance-authority": "^0.7.1",
     "clsx": "^2.1.1",
     "cmdk": "^1.1.1",
+    "cors": "^2.8.5",
     "date-fns": "^3.6.0",
     "embla-carousel-react": "^8.6.0",
-    "cors": "^2.8.5",
     "express": "^4.21.1",
     "input-otp": "^1.4.2",
     "lucide-react": "^0.462.0",
     "next-themes": "^0.3.0",
+    "openai": "^5.15.0",
     "react": "^18.3.1",
     "react-day-picker": "^8.10.1",
     "react-dom": "^18.3.1",

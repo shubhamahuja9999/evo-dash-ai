@@ -24,6 +24,10 @@ model User {
   analytics     Analytics[]
   apiKeys      ApiKey[]
   aiRecommendations AIRecommendation[]
+  cuaCommands   CUACommand[]
+  cuaUserAccess CUAUserAccess?
+  cuaAudits     CUAAudit[]
+  grantedCuaAccess CUAUserAccess[] @relation("CUAUserAccessGranter")
   
   @@map("users")
 }
@@ -211,4 +215,89 @@ model AuditLog {
   createdAt   DateTime @default(now())
   
   @@map("audit_logs")
+}
+
+// CUA (Command User Access) Models
+model CUACommand {
+  id          String   @id @default(cuid())
+  command     String   // The actual command string
+  description String?  // Human-readable description
+  status      CUACommandStatus @default(PENDING)
+  result      Json?    // Command execution result
+  error       String?  // Error message if failed
+  executedBy  String?  // User ID who executed the command
+  executedAt  DateTime @default(now())
+  completedAt DateTime?
+  metadata    Json?    // Additional command metadata
+  
+  // Relations
+  user        User?    @relation(fields: [executedBy], references: [id], onDelete: SetNull)
+  
+  @@map("cua_commands")
+}
+
+enum CUACommandStatus {
+  PENDING
+  EXECUTING
+  COMPLETED
+  FAILED
+  CANCELLED
+}
+
+model CUAUserAccess {
+  id          String   @id @default(cuid())
+  userId      String   @unique
+  accessLevel CUAAccessLevel @default(READ)
+  permissions Json     // Array of specific permissions
+  isActive    Boolean  @default(true)
+  grantedBy   String?  // Admin who granted access
+  grantedAt   DateTime @default(now())
+  expiresAt   DateTime?
+  lastAccess  DateTime?
+  
+  // Relations
+  user        User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  granter     User?    @relation("CUAUserAccessGranter", fields: [grantedBy], references: [id], onDelete: SetNull)
+  
+  @@map("cua_user_access")
+}
+
+enum CUAAccessLevel {
+  READ
+  WRITE
+  ADMIN
+  SUPER_ADMIN
+}
+
+model CUAAudit {
+  id          String   @id @default(cuid())
+  auditType   CUAAuditType
+  status      CUAAuditStatus @default(PENDING)
+  findings    Json?    // Audit findings and results
+  riskScore   Int?     // Risk score 0-100
+  recommendations Json? // Security recommendations
+  performedBy String?  // User who performed the audit
+  performedAt DateTime @default(now())
+  completedAt DateTime?
+  
+  // Relations
+  auditor     User?    @relation(fields: [performedBy], references: [id], onDelete: SetNull)
+  
+  @@map("cua_audits")
+}
+
+enum CUAAuditType {
+  SECURITY
+  COMPLIANCE
+  ACCESS_CONTROL
+  COMMAND_EXECUTION
+  USER_PERMISSIONS
+}
+
+enum CUAAuditStatus {
+  PENDING
+  IN_PROGRESS
+  COMPLETED
+  FAILED
+  REQUIRES_ATTENTION
 }

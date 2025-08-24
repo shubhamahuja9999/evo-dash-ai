@@ -77,3 +77,81 @@ export const healthApi = {
     return response.json();
   },
 };
+
+// CUA (Command User Access) API
+export const cuaApi = {
+  getCommands: async () => {
+    const response = await fetch(`${API_BASE_URL}/api/cua/commands`);
+    if (!response.ok) {
+      throw new Error('Failed to fetch CUA commands');
+    }
+    return response.json();
+  },
+
+  executeCommand: async (command: string, description?: string, metadata?: any) => {
+    const response = await fetch(`${API_BASE_URL}/api/cua/command`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({
+        command,
+        description,
+        metadata,
+        userId: 'current-user-id', // This should come from auth context
+      }),
+    });
+    if (!response.ok) {
+      throw new Error('Failed to execute CUA command');
+    }
+    return response.json();
+  },
+
+  getUsers: async () => {
+    const response = await fetch(`${API_BASE_URL}/api/cua/users`);
+    if (!response.ok) {
+      throw new Error('Failed to fetch CUA users');
+    }
+    return response.json();
+  },
+
+  getAudits: async () => {
+    const response = await fetch(`${API_BASE_URL}/api/cua/audits`);
+    if (!response.ok) {
+      throw new Error('Failed to fetch CUA audits');
+    }
+    return response.json();
+  },
+
+  getLatestAudit: async () => {
+    const response = await fetch(`${API_BASE_URL}/api/cua/audit/latest`);
+    if (!response.ok) {
+      throw new Error('Failed to fetch latest CUA audit');
+    }
+    return response.json();
+  },
+  
+  // Python Automation
+  startAutomation: async (script: 'cua_automation.py' | 'fetch_campaigns.py', command?: string) => {
+    return fetch(`${API_BASE_URL}/api/cua/automation`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({
+        script,
+        command
+      }),
+    });
+  },
+  
+  stopAutomation: async () => {
+    const response = await fetch(`${API_BASE_URL}/api/cua/automation/stop`, {
+      method: 'POST',
+    });
+    if (!response.ok) {
+      throw new Error('Failed to stop automation');
+    }
+    return response.json();
+  },
+};

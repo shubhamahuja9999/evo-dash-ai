@@ -1,0 +1,9 @@
+developer_token: "zolbhgr83QClZyHGpyEaSw"
+client_id: "1074760861091-3abno9bef4jl2fv2j10np10son69djra.apps.googleusercontent.com"
+client_secret: "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"
+refresh_token: "1//04yOfbm4hAecACgYIARAAGAQSNwF-L9IrGhb_8hqKN9qPcVIi4k3ecH3vUNKF7VhRl5yrCM5sVYSbjCqANVuCq2xXBFCqNSObhv0"
+use_proto_plus: True
+login_customer_id: "2911466517"
+child_account_ids:
+  - "8936153023"
+account_timezone: "Asia/Kolkata"
