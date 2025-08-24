@@ -133,7 +133,7 @@ def store_campaigns_to_database(all_data):
     
     # Create a Node.js script to handle the database operations
     db_script = """
-const { PrismaClient } = require('@prisma/client');
+import { PrismaClient } from '@prisma/client';
 const prisma = new PrismaClient();
 
 async function storeCampaigns(campaignData) {
@@ -281,9 +281,13 @@ storeCampaigns(campaignData)
         # Convert the data to JSON string for passing to Node.js
         campaign_data_json = json.dumps(all_data)
         
-        # Run the Node.js script
+        # Run the Node.js script with .mjs extension for ES module support
+        # First rename the file to .mjs
+        os.rename('temp_db_script.js', 'temp_db_script.mjs')
+        
+        # Run the script
         result = subprocess.run(
-            ['node', 'temp_db_script.js', campaign_data_json],
+            ['node', 'temp_db_script.mjs', campaign_data_json],
             capture_output=True,
             text=True,
             check=True
@@ -297,9 +301,11 @@ storeCampaigns(campaignData)
         print(f"Error output: {e.stderr}")
         raise
     finally:
-        # Clean up temporary file
+        # Clean up temporary files
         if os.path.exists('temp_db_script.js'):
             os.remove('temp_db_script.js')
+        if os.path.exists('temp_db_script.mjs'):
+            os.remove('temp_db_script.mjs')
 
 if __name__ == "__main__":
     print("🔄 Starting Google Ads data fetch and database storage...")

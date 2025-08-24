@@ -6,7 +6,8 @@ import {
   Target, 
   Brain, 
   X,
-  Sparkles
+  Sparkles,
+  Bot
 } from 'lucide-react';
 
 interface DashboardSidebarProps {
@@ -29,6 +30,11 @@ const navigation = [
     name: 'AI Insights',
     href: '/insights',
     icon: Brain,
+  },
+  {
+    name: 'CUA Agent',
+    href: '/cua',
+    icon: Bot,
   },
 ];
 

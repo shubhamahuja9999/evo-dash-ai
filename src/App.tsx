@@ -8,6 +8,7 @@ import Analytics from "./pages/Analytics";
 import Campaigns from "./pages/Campaigns";
 import CampaignDetails from "./pages/CampaignDetails";
 import Insights from "./pages/Insights";
+import { CUADashboard } from "./components/cua-dashboard";
 import NotFound from "./pages/NotFound";
 
 const queryClient = new QueryClient();
@@ -24,6 +25,7 @@ const App = () => (
             <Route path="campaigns" element={<Campaigns />} />
             <Route path="campaigns/:campaignId" element={<CampaignDetails />} />
             <Route path="insights" element={<Insights />} />
+            <Route path="cua" element={<CUADashboard />} />
           </Route>
           {/* ADD ALL CUSTOM ROUTES ABOVE THE CATCH-ALL "*" ROUTE */}
           <Route path="*" element={<NotFound />} />
