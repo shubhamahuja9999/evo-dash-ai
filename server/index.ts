@@ -491,7 +491,7 @@ app.get('/api/cua/users', async (req, res) => {
                           user.role === 'MANAGER' ? 'ADMIN' : 'READ';
       
       // Determine permissions based on role
-      let permissions = [];
+      let permissions: string[] = [];
       if (user.role === 'ADMIN') {
         permissions = ['*']; // All permissions
       } else if (user.role === 'MANAGER') {
