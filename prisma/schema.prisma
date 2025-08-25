@@ -24,10 +24,9 @@ model User {
   analytics     Analytics[]
   apiKeys      ApiKey[]
   aiRecommendations AIRecommendation[]
-  cuaCommands   CUACommand[]
-  cuaUserAccess CUAUserAccess?
-  cuaAudits     CUAAudit[]
-  grantedCuaAccess CUAUserAccess[] @relation("CUAUserAccessGranter")
+  cuaCommands  CUACommand[]
+  cuaUserAccess CUAUserAccess[]
+  cuaAudits    CUAAudit[]
   
   @@map("users")
 }
@@ -65,6 +64,9 @@ model Campaign {
   targetAudience String?
   userId      String
   googleAdsId String?  @unique // Google Ads campaign ID - unique constraint
+  campaignType String? // SEARCH, DISPLAY, VIDEO, etc.
+  optimizationScore Float? // Google Ads optimization score
+  bidStrategy String? // Bidding strategy type
   createdAt   DateTime @default(now())
   updatedAt   DateTime @updatedAt
   
@@ -145,19 +147,28 @@ enum AdStatus {
 
 // Analytics and performance data
 model Analytics {
-  id          String   @id @default(cuid())
-  date        DateTime
-  impressions Int      @default(0)
-  clicks      Int      @default(0)
-  cost        Float    @default(0)
-  conversions Int      @default(0)
-  conversionValue Float @default(0)
-  ctr         Float?   // Click-through rate
-  cpc         Float?   // Cost per click
-  cpm         Float?   // Cost per thousand impressions
-  userId      String?
-  campaignId  String?
-  createdAt   DateTime @default(now())
+  id                  String   @id @default(cuid())
+  date                DateTime
+  impressions         Int      @default(0)
+  activeViewImpressions Int      @default(0)
+  clicks              Int      @default(0)
+  interactions        Int      @default(0)
+  cost                Float    @default(0)
+  conversions         Int      @default(0)
+  allConversions      Int      @default(0)
+  conversionValue     Float    @default(0)
+  allConversionValue  Float    @default(0)
+  ctr                 Float?   // Click-through rate
+  activeViewCtr       Float?   // Active View click-through rate
+  interactionRate     Float?   // Interaction rate
+  cpc                 Float?   // Cost per click
+  cpv                 Float?   // Cost per view
+  cpm                 Float?   // Cost per thousand impressions
+  costPerConversion   Float?   // Cost per conversion
+  costPerAllConversion Float?  // Cost per all conversions
+  userId              String?
+  campaignId          String?
+  createdAt           DateTime @default(now())
   
   // Relations
   user        User?     @relation(fields: [userId], references: [id], onDelete: SetNull)
@@ -217,87 +228,68 @@ model AuditLog {
   @@map("audit_logs")
 }
 
-// CUA (Command User Access) Models
+// Google Ads CUA (Customer User Access) management
 model CUACommand {
   id          String   @id @default(cuid())
-  command     String   // The actual command string
-  description String?  // Human-readable description
+  command     String   // Natural language command
+  action      CUAAction
   status      CUACommandStatus @default(PENDING)
+  email       String?  // Target email for user operations
+  accessLevel String?  // Access level for invite/update operations
   result      Json?    // Command execution result
   error       String?  // Error message if failed
-  executedBy  String?  // User ID who executed the command
-  executedAt  DateTime @default(now())
-  completedAt DateTime?
-  metadata    Json?    // Additional command metadata
+  userId      String
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
   
   // Relations
-  user        User?    @relation(fields: [executedBy], references: [id], onDelete: SetNull)
+  user        User     @relation(fields: [userId], references: [id], onDelete: Cascade)
   
   @@map("cua_commands")
 }
 
-enum CUACommandStatus {
-  PENDING
-  EXECUTING
-  COMPLETED
-  FAILED
-  CANCELLED
+enum CUAAction {
+  INVITE_USER
+  UPDATE_ACCESS
+  REMOVE_ACCESS
+  AUDIT
 }
 
+enum CUACommandStatus {
+  PENDING
+  PROCESSING
+  COMPLETED
+  FAILED
+}
+
+// Google Ads CUA User Access Records
 model CUAUserAccess {
   id          String   @id @default(cuid())
-  userId      String   @unique
-  accessLevel CUAAccessLevel @default(READ)
-  permissions Json     // Array of specific permissions
-  isActive    Boolean  @default(true)
-  grantedBy   String?  // Admin who granted access
-  grantedAt   DateTime @default(now())
-  expiresAt   DateTime?
+  email       String   @unique
+  accessLevel String
+  status      String
   lastAccess  DateTime?
+  userId      String   // User who manages this access
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
   
   // Relations
   user        User     @relation(fields: [userId], references: [id], onDelete: Cascade)
-  granter     User?    @relation("CUAUserAccessGranter", fields: [grantedBy], references: [id], onDelete: SetNull)
   
   @@map("cua_user_access")
 }
 
-enum CUAAccessLevel {
-  READ
-  WRITE
-  ADMIN
-  SUPER_ADMIN
-}
-
+// Google Ads CUA Audit Records
 model CUAAudit {
   id          String   @id @default(cuid())
-  auditType   CUAAuditType
-  status      CUAAuditStatus @default(PENDING)
-  findings    Json?    // Audit findings and results
-  riskScore   Int?     // Risk score 0-100
-  recommendations Json? // Security recommendations
-  performedBy String?  // User who performed the audit
-  performedAt DateTime @default(now())
-  completedAt DateTime?
+  findings    Json     // Audit findings and recommendations
+  riskLevel   String
+  userId      String
+  createdAt   DateTime @default(now())
   
   // Relations
-  auditor     User?    @relation(fields: [performedBy], references: [id], onDelete: SetNull)
+  user        User     @relation(fields: [userId], references: [id], onDelete: Cascade)
   
   @@map("cua_audits")
 }
 
-enum CUAAuditType {
-  SECURITY
-  COMPLIANCE
-  ACCESS_CONTROL
-  COMMAND_EXECUTION
-  USER_PERMISSIONS
-}
-
-enum CUAAuditStatus {
-  PENDING
-  IN_PROGRESS
-  COMPLETED
-  FAILED
-  REQUIRES_ATTENTION
-}

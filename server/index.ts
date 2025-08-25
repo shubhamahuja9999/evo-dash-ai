@@ -112,7 +112,7 @@ async function executePythonAutomation(
         });
       }
     }
-
+    
 // Analytics endpoints
 app.get('/api/analytics', async (req, res) => {
   try {
@@ -205,8 +205,8 @@ app.get('/api/campaigns', async (req, res) => {
       },
     });
     res.json(campaigns);
-  } catch (error) {
-    console.error('Error fetching campaigns:', error);
+      } catch (error) {
+        console.error('Error fetching campaigns:', error);
     res.status(500).json({ error: 'Failed to fetch campaigns' });
   }
 });
@@ -289,8 +289,8 @@ app.get('/api/campaigns/:id', async (req, res) => {
 
 // Insights endpoints
 app.get('/api/insights', async (req, res) => {
-  try {
-    const insights = await prisma.aIRecommendation.findMany({
+      try {
+        const insights = await prisma.aIRecommendation.findMany({
       include: {
         campaign: true,
         user: true,
@@ -337,15 +337,37 @@ app.get('/api/insights/stats', async (req, res) => {
 // CUA additional endpoints
 app.get('/api/cua/commands', async (req, res) => {
   try {
-    const commands = await prisma.cUACommand.findMany({
-      include: {
-        user: true,
+    // Mock CUA commands data for frontend development
+    const mockCommands = [
+      {
+        id: 'cmd-1',
+        command: 'invite user john@example.com with admin access',
+        action: 'invite_user',
+        status: 'completed',
+        email: 'john@example.com',
+        accessLevel: 'ADMIN',
+        result: { message: 'User invited successfully', type: 'success' },
+        error: null,
+        executedAt: new Date(Date.now() - 86400000).toISOString(),
+        completedAt: new Date(Date.now() - 86400000 + 5000).toISOString(),
+        user: { name: 'System Admin', email: 'admin@example.com' }
       },
-      orderBy: {
-        executedAt: 'desc',
-      },
-    });
-    res.json(commands);
+      {
+        id: 'cmd-2',
+        command: 'audit user permissions',
+        action: 'audit',
+        status: 'completed',
+        email: null,
+        accessLevel: null,
+        result: { message: 'Audit completed successfully', findings: 'All permissions are appropriate' },
+        error: null,
+        executedAt: new Date(Date.now() - 172800000).toISOString(),
+        completedAt: new Date(Date.now() - 172800000 + 10000).toISOString(),
+        user: { name: 'System Admin', email: 'admin@example.com' }
+      }
+    ];
+    
+    res.json(mockCommands);
   } catch (error) {
     console.error('Error fetching CUA commands:', error);
     res.status(500).json({ error: 'Failed to fetch CUA commands' });
@@ -354,30 +376,97 @@ app.get('/api/cua/commands', async (req, res) => {
 
 app.get('/api/cua/users', async (req, res) => {
   try {
-    const users = await prisma.cUAUserAccess.findMany({
-      include: {
-        user: true,
-        granter: true,
+    // Mock CUA user access data for frontend development
+    const mockUserAccess = [
+      {
+        id: 'user-access-1',
+        userId: 'user-1',
+        email: 'john@example.com',
+        accessLevel: 'ADMIN',
+        status: 'ACTIVE',
+        lastAccess: new Date(Date.now() - 3600000).toISOString(),
+        grantedAt: new Date(Date.now() - 86400000 * 7).toISOString(),
+        updatedAt: new Date(Date.now() - 3600000).toISOString(),
+        user: { name: 'John Doe', email: 'john@example.com' },
+        granter: { name: 'System Admin', email: 'admin@example.com' },
+        isActive: true,
+        permissions: ['view_campaigns', 'edit_campaigns', 'view_analytics', 'manage_users'],
+        campaigns: 3,
+        campaignNames: 'Summer Sale, Winter Campaign, Black Friday'
       },
-    });
-    res.json(users);
+      {
+        id: 'user-access-2',
+        userId: 'user-2',
+        email: 'sarah@example.com',
+        accessLevel: 'READ',
+        status: 'ACTIVE',
+        lastAccess: new Date(Date.now() - 7200000).toISOString(),
+        grantedAt: new Date(Date.now() - 86400000 * 14).toISOString(),
+        updatedAt: new Date(Date.now() - 7200000).toISOString(),
+        user: { name: 'Sarah Wilson', email: 'sarah@example.com' },
+        granter: { name: 'System Admin', email: 'admin@example.com' },
+        isActive: true,
+        permissions: ['view_campaigns', 'view_analytics'],
+        campaigns: 1,
+        campaignNames: 'Product Launch'
+      }
+    ];
+    
+    res.json(mockUserAccess);
   } catch (error) {
-    console.error('Error fetching CUA users:', error);
-    res.status(500).json({ error: 'Failed to fetch CUA users' });
+    console.error('Error fetching CUA user access:', error);
+    res.status(500).json({ error: 'Failed to fetch CUA user access' });
   }
 });
 
 app.get('/api/cua/audits', async (req, res) => {
   try {
-    const audits = await prisma.cUAAudit.findMany({
-      include: {
-        auditor: true,
+    // Mock CUA audit data for frontend development
+    const mockAudits = [
+      {
+        id: 'audit-1',
+        auditType: 'ACCESS_CONTROL',
+        status: 'COMPLETED',
+        findings: {
+          totalUsers: 15,
+          adminUsers: 3,
+          readOnlyUsers: 12,
+          unusedAccounts: 2,
+          recommendations: ['Remove unused accounts', 'Review admin privileges']
+        },
+        riskScore: 25,
+        recommendations: {
+          message: 'Overall access control is good with minor improvements needed',
+          suggestions: ['Remove inactive users', 'Implement MFA for admin accounts', 'Regular access reviews']
+        },
+        performedBy: 'system',
+        performedAt: new Date(Date.now() - 86400000).toISOString(),
+        completedAt: new Date(Date.now() - 86400000 + 300000).toISOString(),
+        auditor: { name: 'System Auditor', email: 'auditor@example.com' }
       },
-      orderBy: {
-        performedAt: 'desc',
-      },
-    });
-    res.json(audits);
+      {
+        id: 'audit-2',
+        auditType: 'SECURITY',
+        status: 'COMPLETED',
+        findings: {
+          securityIssues: 1,
+          weakPasswords: 0,
+          multiFactorAuth: 10,
+          lastLoginCheck: 'All users active within 30 days'
+        },
+        riskScore: 15,
+        recommendations: {
+          message: 'Security posture is strong with minimal risks',
+          suggestions: ['Continue monitoring', 'Quarterly security reviews']
+        },
+        performedBy: 'system',
+        performedAt: new Date(Date.now() - 172800000).toISOString(),
+        completedAt: new Date(Date.now() - 172800000 + 450000).toISOString(),
+        auditor: { name: 'System Auditor', email: 'auditor@example.com' }
+      }
+    ];
+    
+    res.json(mockAudits);
   } catch (error) {
     console.error('Error fetching CUA audits:', error);
     res.status(500).json({ error: 'Failed to fetch CUA audits' });
@@ -386,14 +475,31 @@ app.get('/api/cua/audits', async (req, res) => {
 
 app.get('/api/cua/audit/latest', async (req, res) => {
   try {
-    const latestAudit = await prisma.cUAAudit.findFirst({
-      include: {
-        auditor: true,
+    // Mock latest CUA audit data for frontend development
+    const latestAudit = {
+      id: 'audit-latest',
+      auditType: 'ACCESS_CONTROL',
+      status: 'COMPLETED',
+      findings: {
+        totalUsers: 15,
+        adminUsers: 3,
+        readOnlyUsers: 12,
+        unusedAccounts: 2,
+        recommendations: ['Remove unused accounts', 'Review admin privileges'],
+        criticalIssues: 0,
+        warningIssues: 2
       },
-      orderBy: {
-        performedAt: 'desc',
+      riskScore: 25,
+      recommendations: {
+        message: 'Overall access control is good with minor improvements needed',
+        suggestions: ['Remove inactive users', 'Implement MFA for admin accounts', 'Regular access reviews']
       },
-    });
+      performedBy: 'system',
+      performedAt: new Date(Date.now() - 3600000).toISOString(),
+      completedAt: new Date(Date.now() - 3600000 + 180000).toISOString(),
+      auditor: { name: 'System Auditor', email: 'auditor@example.com' }
+    };
+    
     res.json(latestAudit);
   } catch (error) {
     console.error('Error fetching latest CUA audit:', error);
