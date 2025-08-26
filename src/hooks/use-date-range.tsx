@@ -90,19 +90,27 @@ export function useDateRange(initialPreset: string = 'last_7_days') {
     return { from: previousStart, to: previousEnd }
   }, [currentRange, state.comparisonEnabled])
 
+  // Helper function to format date without timezone issues
+  const formatLocalDate = useCallback((date: Date): string => {
+    const year = date.getFullYear();
+    const month = String(date.getMonth() + 1).padStart(2, '0');
+    const day = String(date.getDate()).padStart(2, '0');
+    return `${year}-${month}-${day}`;
+  }, []);
+
   // Generate API parameters
   const apiParams = useMemo((): DateRangeParams => {
     if (state.preset === 'custom' && currentRange.from && currentRange.to) {
       return {
-        startDate: currentRange.from.toISOString().split('T')[0],
-        endDate: currentRange.to.toISOString().split('T')[0],
+        startDate: formatLocalDate(currentRange.from),
+        endDate: formatLocalDate(currentRange.to),
       }
     }
 
     return {
       dateRange: state.preset,
     }
-  }, [state.preset, currentRange])
+  }, [state.preset, currentRange, formatLocalDate])
 
   // Generate API parameters for previous period
   const previousApiParams = useMemo((): DateRangeParams | null => {
@@ -111,10 +119,10 @@ export function useDateRange(initialPreset: string = 'last_7_days') {
     }
 
     return {
-      startDate: previousRange.from.toISOString().split('T')[0],
-      endDate: previousRange.to.toISOString().split('T')[0],
+      startDate: formatLocalDate(previousRange.from),
+      endDate: formatLocalDate(previousRange.to),
     }
-  }, [state.comparisonEnabled, previousRange])
+  }, [state.comparisonEnabled, previousRange, formatLocalDate])
 
   const setPreset = useCallback((preset: string) => {
     setState(prev => ({ ...prev, preset, customRange: undefined }))

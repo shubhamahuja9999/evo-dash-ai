@@ -130,17 +130,25 @@ app.get('/api/analytics', async (req, res) => {
         },
       };
     } else if (dateRange) {
-      // Predefined date ranges (like Google Ads)
+      // Predefined date ranges (like Google Ads) - use UTC to match database
       const now = new Date();
       const today = new Date(now.getFullYear(), now.getMonth(), now.getDate());
       
       switch (dateRange) {
         case 'today':
-          dateFilter = { date: { gte: today } };
+          const tomorrow = new Date(today);
+          tomorrow.setDate(tomorrow.getDate() + 1);
+          dateFilter = { 
+            date: { 
+              gte: today,
+              lt: tomorrow 
+            } 
+          };
           break;
         case 'yesterday':
           const yesterday = new Date(today);
           yesterday.setDate(yesterday.getDate() - 1);
+
           dateFilter = { 
             date: { 
               gte: yesterday, 
@@ -213,7 +221,14 @@ app.get('/api/analytics/stats', async (req, res) => {
       
       switch (dateRange) {
         case 'today':
-          dateFilter = { date: { gte: today } };
+          const tomorrowTemp = new Date(today);
+          tomorrowTemp.setDate(tomorrowTemp.getDate() + 1);
+          dateFilter = { 
+            date: { 
+              gte: today,
+              lt: tomorrowTemp 
+            } 
+          };
           break;
         case 'yesterday':
           const yesterday = new Date(today);
@@ -298,18 +313,78 @@ app.get('/api/traffic-sources', async (req, res) => {
   }
 });
 
-// Campaigns endpoints
+// Campaigns endpoints with date filtering
 app.get('/api/campaigns', async (req, res) => {
   try {
+    const { startDate, endDate, dateRange } = req.query;
+    
+    // Build date filter for analytics
+    let analyticsDateFilter = {};
+    
+    if (startDate && endDate) {
+      const endDatePlusOne = new Date(endDate as string);
+      endDatePlusOne.setDate(endDatePlusOne.getDate() + 1);
+      analyticsDateFilter = {
+        date: {
+          gte: new Date(startDate as string),
+          lt: endDatePlusOne,
+        },
+      };
+    } else if (dateRange) {
+      const now = new Date();
+      const today = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+      
+      switch (dateRange) {
+        case 'today':
+          const tomorrowCampaign = new Date(today);
+          tomorrowCampaign.setDate(tomorrowCampaign.getDate() + 1);
+          analyticsDateFilter = { 
+            date: { 
+              gte: today,
+              lt: tomorrowCampaign 
+            } 
+          };
+          break;
+        case 'yesterday':
+          const yesterday = new Date(today);
+          yesterday.setDate(yesterday.getDate() - 1);
+
+          analyticsDateFilter = { date: { gte: yesterday, lt: today } };
+          break;
+        case 'last_7_days':
+          const last7Days = new Date(today);
+          last7Days.setDate(last7Days.getDate() - 7);
+          analyticsDateFilter = { date: { gte: last7Days } };
+          break;
+        case 'last_30_days':
+          const last30Days = new Date(today);
+          last30Days.setDate(last30Days.getDate() - 30);
+          analyticsDateFilter = { date: { gte: last30Days } };
+          break;
+        case 'this_month':
+          const startOfMonth = new Date(now.getFullYear(), now.getMonth(), 1);
+          analyticsDateFilter = { date: { gte: startOfMonth } };
+          break;
+        case 'last_month':
+          const startOfLastMonth = new Date(now.getFullYear(), now.getMonth() - 1, 1);
+          const endOfLastMonth = new Date(now.getFullYear(), now.getMonth(), 0);
+          analyticsDateFilter = { date: { gte: startOfLastMonth, lte: endOfLastMonth } };
+          break;
+      }
+    }
+
     const campaigns = await prisma.campaign.findMany({
       include: {
-        user: true,
+        user: {
+          select: { name: true, email: true }
+        },
         adGroups: {
           include: {
             ads: true,
           },
         },
         analytics: {
+          where: analyticsDateFilter,
           orderBy: {
             date: 'desc',
           },
@@ -319,15 +394,111 @@ app.get('/api/campaigns', async (req, res) => {
         createdAt: 'desc',
       },
     });
-    res.json(campaigns);
-      } catch (error) {
-        console.error('Error fetching campaigns:', error);
+    
+    // Transform to match frontend format with date-filtered analytics
+    const formattedCampaigns = campaigns.map(campaign => {
+      const analytics = campaign.analytics || [];
+      const totalImpressions = analytics.reduce((sum, a) => sum + a.impressions, 0);
+      const totalClicks = analytics.reduce((sum, a) => sum + a.clicks, 0);
+      const totalCost = analytics.reduce((sum, a) => sum + a.cost, 0);
+      const totalConversions = analytics.reduce((sum, a) => sum + a.conversions, 0);
+      const totalConversionValue = analytics.reduce((sum, a) => sum + a.conversionValue, 0);
+      
+      return {
+        id: campaign.id,
+        name: campaign.name,
+        status: campaign.status.toLowerCase(),
+        budget: `₹${campaign.budget?.toLocaleString() || '0'}`,
+        spent: `₹${totalCost.toLocaleString()}`,
+        impressions: totalImpressions.toLocaleString(),
+        clicks: totalClicks.toLocaleString(),
+        ctr: totalImpressions > 0 ? `${(totalClicks / totalImpressions * 100).toFixed(2)}%` : '0%',
+        conversions: totalConversions,
+        conversionValue: `₹${totalConversionValue.toLocaleString()}`,
+        startDate: campaign.startDate?.toISOString().split('T')[0] || '',
+        endDate: campaign.endDate?.toISOString().split('T')[0] || '',
+        googleAdsId: campaign.googleAdsId,
+        user: campaign.user,
+        analytics: analytics.map(a => ({
+          date: a.date.toISOString().split('T')[0],
+          impressions: a.impressions,
+          clicks: a.clicks,
+          cost: a.cost,
+          conversions: a.conversions,
+          conversionValue: a.conversionValue,
+          ctr: a.ctr,
+          cpc: a.cpc
+        })),
+        // Add date range info
+        dateRange: dateRange || 'all_time',
+        startDateFilter: startDate || null,
+        endDateFilter: endDate || null,
+      };
+    });
+    
+    res.json(formattedCampaigns);
+  } catch (error) {
+    console.error('Error fetching campaigns:', error);
     res.status(500).json({ error: 'Failed to fetch campaigns' });
   }
 });
 
 app.get('/api/campaigns/stats', async (req, res) => {
   try {
+    const { startDate, endDate, dateRange } = req.query;
+    
+    // Build same date filter for stats
+    let dateFilter = {};
+    
+    if (startDate && endDate) {
+      dateFilter = {
+        date: {
+          gte: new Date(startDate as string),
+          lte: new Date(endDate as string),
+        },
+      };
+    } else if (dateRange) {
+      const now = new Date();
+      const today = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+      
+      switch (dateRange) {
+        case 'today':
+          const tomorrowTemp = new Date(today);
+          tomorrowTemp.setDate(tomorrowTemp.getDate() + 1);
+          dateFilter = { 
+            date: { 
+              gte: today,
+              lt: tomorrowTemp 
+            } 
+          };
+          break;
+        case 'yesterday':
+          const yesterday = new Date(today);
+          yesterday.setDate(yesterday.getDate() - 1);
+          dateFilter = { date: { gte: yesterday, lt: today } };
+          break;
+        case 'last_7_days':
+          const last7Days = new Date(today);
+          last7Days.setDate(last7Days.getDate() - 7);
+          dateFilter = { date: { gte: last7Days } };
+          break;
+        case 'last_30_days':
+          const last30Days = new Date(today);
+          last30Days.setDate(last30Days.getDate() - 30);
+          dateFilter = { date: { gte: last30Days } };
+          break;
+        case 'this_month':
+          const startOfMonth = new Date(now.getFullYear(), now.getMonth(), 1);
+          dateFilter = { date: { gte: startOfMonth } };
+          break;
+        case 'last_month':
+          const startOfLastMonth = new Date(now.getFullYear(), now.getMonth() - 1, 1);
+          const endOfLastMonth = new Date(now.getFullYear(), now.getMonth(), 0);
+          dateFilter = { date: { gte: startOfLastMonth, lte: endOfLastMonth } };
+          break;
+      }
+    }
+
     const activeCampaigns = await prisma.campaign.count({
       where: {
         status: 'ACTIVE',
@@ -335,18 +506,21 @@ app.get('/api/campaigns/stats', async (req, res) => {
     });
     
     const totalConversions = await prisma.analytics.aggregate({
+      where: dateFilter,
       _sum: {
         conversions: true,
       },
     });
     
     const totalImpressions = await prisma.analytics.aggregate({
+      where: dateFilter,
       _sum: {
         impressions: true,
       },
     });
     
     const totalClicks = await prisma.analytics.aggregate({
+      where: dateFilter,
       _sum: {
         clicks: true,
       },
@@ -358,9 +532,13 @@ app.get('/api/campaigns/stats', async (req, res) => {
 
     const stats = {
       activeCampaigns,
-      totalConversions: totalConversions._sum.conversions || 0,
-      totalImpressions: totalImpressions._sum.impressions || 0,
+      totalConversions: (totalConversions._sum.conversions || 0).toLocaleString(),
+      totalImpressions: (totalImpressions._sum.impressions || 0).toLocaleString(),
       avgCTR,
+      // Add date range info
+      dateRange: dateRange || 'all_time',
+      startDate: startDate || null,
+      endDate: endDate || null,
     };
 
     res.json(stats);
@@ -386,7 +564,7 @@ app.get('/api/campaigns/:id', async (req, res) => {
         analytics: {
           orderBy: {
             date: 'desc',
-          },
+        },
         },
       },
     });
@@ -404,7 +582,7 @@ app.get('/api/campaigns/:id', async (req, res) => {
 
 // Insights endpoints
 app.get('/api/insights', async (req, res) => {
-      try {
+  try {
         const insights = await prisma.aIRecommendation.findMany({
       include: {
         campaign: true,
@@ -439,7 +617,7 @@ app.get('/api/insights/stats', async (req, res) => {
       totalInsights,
       highPriority,
       opportunities,
-      avgConfidence: Math.floor(Math.random() * 20) + 80, // Mock confidence between 80-100%
+      avgConfidence: totalInsights > 0 ? Math.round(85 + (highPriority / totalInsights) * 15) : 0
     };
 
     res.json(stats);
@@ -452,37 +630,18 @@ app.get('/api/insights/stats', async (req, res) => {
 // CUA additional endpoints
 app.get('/api/cua/commands', async (req, res) => {
   try {
-    // Mock CUA commands data for frontend development
-    const mockCommands = [
-      {
-        id: 'cmd-1',
-        command: 'invite user john@example.com with admin access',
-        action: 'invite_user',
-        status: 'completed',
-        email: 'john@example.com',
-        accessLevel: 'ADMIN',
-        result: { message: 'User invited successfully', type: 'success' },
-        error: null,
-        executedAt: new Date(Date.now() - 86400000).toISOString(),
-        completedAt: new Date(Date.now() - 86400000 + 5000).toISOString(),
-        user: { name: 'System Admin', email: 'admin@example.com' }
+    const commands = await prisma.cUACommand.findMany({
+      include: {
+        user: {
+          select: { name: true, email: true }
+        }
       },
-      {
-        id: 'cmd-2',
-        command: 'audit user permissions',
-        action: 'audit',
-        status: 'completed',
-        email: null,
-        accessLevel: null,
-        result: { message: 'Audit completed successfully', findings: 'All permissions are appropriate' },
-        error: null,
-        executedAt: new Date(Date.now() - 172800000).toISOString(),
-        completedAt: new Date(Date.now() - 172800000 + 10000).toISOString(),
-        user: { name: 'System Admin', email: 'admin@example.com' }
+      orderBy: {
+        createdAt: 'desc'
       }
-    ];
+    });
     
-    res.json(mockCommands);
+    res.json(commands);
   } catch (error) {
     console.error('Error fetching CUA commands:', error);
     res.status(500).json({ error: 'Failed to fetch CUA commands' });
@@ -491,43 +650,18 @@ app.get('/api/cua/commands', async (req, res) => {
 
 app.get('/api/cua/users', async (req, res) => {
   try {
-    // Mock CUA user access data for frontend development
-    const mockUserAccess = [
-      {
-        id: 'user-access-1',
-        userId: 'user-1',
-        email: 'john@example.com',
-        accessLevel: 'ADMIN',
-        status: 'ACTIVE',
-        lastAccess: new Date(Date.now() - 3600000).toISOString(),
-        grantedAt: new Date(Date.now() - 86400000 * 7).toISOString(),
-        updatedAt: new Date(Date.now() - 3600000).toISOString(),
-        user: { name: 'John Doe', email: 'john@example.com' },
-        granter: { name: 'System Admin', email: 'admin@example.com' },
-        isActive: true,
-        permissions: ['view_campaigns', 'edit_campaigns', 'view_analytics', 'manage_users'],
-        campaigns: 3,
-        campaignNames: 'Summer Sale, Winter Campaign, Black Friday'
+    const userAccess = await prisma.cUAUserAccess.findMany({
+      include: {
+        user: {
+          select: { name: true, email: true }
+        }
       },
-      {
-        id: 'user-access-2',
-        userId: 'user-2',
-        email: 'sarah@example.com',
-        accessLevel: 'READ',
-        status: 'ACTIVE',
-        lastAccess: new Date(Date.now() - 7200000).toISOString(),
-        grantedAt: new Date(Date.now() - 86400000 * 14).toISOString(),
-        updatedAt: new Date(Date.now() - 7200000).toISOString(),
-        user: { name: 'Sarah Wilson', email: 'sarah@example.com' },
-        granter: { name: 'System Admin', email: 'admin@example.com' },
-        isActive: true,
-        permissions: ['view_campaigns', 'view_analytics'],
-        campaigns: 1,
-        campaignNames: 'Product Launch'
+      orderBy: {
+        createdAt: 'desc'
       }
-    ];
+    });
     
-    res.json(mockUserAccess);
+    res.json(userAccess);
   } catch (error) {
     console.error('Error fetching CUA user access:', error);
     res.status(500).json({ error: 'Failed to fetch CUA user access' });
@@ -536,52 +670,18 @@ app.get('/api/cua/users', async (req, res) => {
 
 app.get('/api/cua/audits', async (req, res) => {
   try {
-    // Mock CUA audit data for frontend development
-    const mockAudits = [
-      {
-        id: 'audit-1',
-        auditType: 'ACCESS_CONTROL',
-        status: 'COMPLETED',
-        findings: {
-          totalUsers: 15,
-          adminUsers: 3,
-          readOnlyUsers: 12,
-          unusedAccounts: 2,
-          recommendations: ['Remove unused accounts', 'Review admin privileges']
-        },
-        riskScore: 25,
-        recommendations: {
-          message: 'Overall access control is good with minor improvements needed',
-          suggestions: ['Remove inactive users', 'Implement MFA for admin accounts', 'Regular access reviews']
-        },
-        performedBy: 'system',
-        performedAt: new Date(Date.now() - 86400000).toISOString(),
-        completedAt: new Date(Date.now() - 86400000 + 300000).toISOString(),
-        auditor: { name: 'System Auditor', email: 'auditor@example.com' }
+    const audits = await prisma.cUAAudit.findMany({
+      include: {
+        user: {
+          select: { name: true, email: true }
+        }
       },
-      {
-        id: 'audit-2',
-        auditType: 'SECURITY',
-        status: 'COMPLETED',
-        findings: { 
-          securityIssues: 1,
-          weakPasswords: 0,
-          multiFactorAuth: 10,
-          lastLoginCheck: 'All users active within 30 days'
-        },
-        riskScore: 15,
-        recommendations: { 
-          message: 'Security posture is strong with minimal risks',
-          suggestions: ['Continue monitoring', 'Quarterly security reviews']
-        },
-        performedBy: 'system',
-        performedAt: new Date(Date.now() - 172800000).toISOString(),
-        completedAt: new Date(Date.now() - 172800000 + 450000).toISOString(),
-        auditor: { name: 'System Auditor', email: 'auditor@example.com' }
+      orderBy: {
+        createdAt: 'desc'
       }
-    ];
+    });
     
-    res.json(mockAudits);
+    res.json(audits);
   } catch (error) {
     console.error('Error fetching CUA audits:', error);
     res.status(500).json({ error: 'Failed to fetch CUA audits' });
@@ -590,30 +690,20 @@ app.get('/api/cua/audits', async (req, res) => {
 
 app.get('/api/cua/audit/latest', async (req, res) => {
   try {
-    // Mock latest CUA audit data for frontend development
-    const latestAudit = {
-      id: 'audit-latest',
-      auditType: 'ACCESS_CONTROL',
-      status: 'COMPLETED',
-      findings: { 
-        totalUsers: 15,
-        adminUsers: 3,
-        readOnlyUsers: 12,
-        unusedAccounts: 2,
-        recommendations: ['Remove unused accounts', 'Review admin privileges'],
-        criticalIssues: 0,
-        warningIssues: 2
+    const latestAudit = await prisma.cUAAudit.findFirst({
+      include: {
+        user: {
+          select: { name: true, email: true }
+        }
       },
-      riskScore: 25,
-      recommendations: { 
-        message: 'Overall access control is good with minor improvements needed',
-        suggestions: ['Remove inactive users', 'Implement MFA for admin accounts', 'Regular access reviews']
-      },
-      performedBy: 'system',
-      performedAt: new Date(Date.now() - 3600000).toISOString(),
-      completedAt: new Date(Date.now() - 3600000 + 180000).toISOString(),
-      auditor: { name: 'System Auditor', email: 'auditor@example.com' }
-    };
+      orderBy: {
+        createdAt: 'desc'
+      }
+    });
+    
+    if (!latestAudit) {
+      return res.status(404).json({ error: 'No audits found' });
+    }
     
     res.json(latestAudit);
   } catch (error) {
@@ -627,12 +717,25 @@ app.post('/api/cua/automation', async (req, res) => {
     const { script, command } = req.body;
     console.log('Starting CUA automation:', { script, command });
     
-    // Mock automation start response
-    res.json({
-      status: 'started',
-              script, 
-              command,
-      timestamp: new Date().toISOString(),
+    // Execute the actual automation script
+    const { exec } = require('child_process');
+    exec(script, (error, stdout, stderr) => {
+      if (error) {
+        console.error(`Automation error: ${error}`);
+        return res.status(500).json({ 
+          status: 'failed',
+          error: error.message,
+          timestamp: new Date().toISOString()
+        });
+      }
+      
+      res.json({
+        status: 'completed',
+        script, 
+        command,
+        output: stdout,
+        timestamp: new Date().toISOString(),
+      });
     });
   } catch (error) {
     console.error('Error starting CUA automation:', error);
@@ -644,10 +747,13 @@ app.post('/api/cua/automation/stop', async (req, res) => {
   try {
     console.log('Stopping CUA automation');
     
-    // Mock automation stop response
-    res.json({
-      status: 'stopped',
-      timestamp: new Date().toISOString(),
+    // Kill any running automation processes
+    const { exec } = require('child_process');
+    exec('pkill -f "cua_automation"', (error, stdout, stderr) => {
+      res.json({
+        status: 'stopped',
+        timestamp: new Date().toISOString(),
+      });
     });
   } catch (error) {
     console.error('Error stopping CUA automation:', error);
@@ -657,11 +763,20 @@ app.post('/api/cua/automation/stop', async (req, res) => {
 
 app.get('/api/cua/interface', async (req, res) => {
   try {
-    // Mock CUA interface data
+    // Get real CUA interface status from database
+    const totalCommands = await prisma.cUACommand.count();
+    const totalUsers = await prisma.cUAUserAccess.count();
+    const totalAudits = await prisma.cUAAudit.count();
+    
     const interfaceData = {
-      status: 'active',
+      status: totalCommands > 0 ? 'active' : 'inactive',
       version: '1.0.0',
       features: ['automation', 'auditing', 'user_management'],
+      stats: {
+        totalCommands,
+        totalUsers,
+        totalAudits
+      },
       timestamp: new Date().toISOString(),
     };
     res.json(interfaceData);
@@ -686,6 +801,33 @@ app.post('/api/chat', async (req, res) => {
   } catch (error) {
     console.error('Error in chat:', error);
     res.status(500).json({ error: 'Failed to process chat message' });
+  }
+});
+
+// Seed data endpoint
+app.post('/api/seed-data', async (req, res) => {
+  try {
+    console.log('Starting sample data seeding...');
+    
+    const { exec } = require('child_process');
+    
+    // Execute the seeding script
+    exec('node seed-sample-data.js', (error, stdout, stderr) => {
+      if (error) {
+        console.error(`Seed error: ${error}`);
+        return res.status(500).send(`Seeding failed: ${error.message}`);
+      }
+      if (stderr) {
+        console.error(`Seed stderr: ${stderr}`);
+      }
+      
+      console.log('Sample data seeded successfully!');
+      res.send(`Sample data seeded successfully!\n\n${stdout}`);
+    });
+    
+  } catch (error) {
+    console.error('Error seeding data:', error);
+    res.status(500).send(`Error seeding data: ${error.message}`);
   }
 });
 

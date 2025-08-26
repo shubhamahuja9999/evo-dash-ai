@@ -135,6 +135,7 @@ const Analytics = () => {
             value={customRange}
             onChange={setCustomRange}
             onPresetChange={setPreset}
+            currentPreset={preset}
             comparisonEnabled={comparisonEnabled}
             onComparisonToggle={setComparisonEnabled}
             className="lg:w-auto"

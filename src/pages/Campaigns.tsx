@@ -2,6 +2,8 @@ import CUAChat from '@/components/ui/cua-chat';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
+import { DateRangePicker } from '@/components/ui/date-range-picker';
+import { useDateRange } from '@/hooks/use-date-range';
 import { 
   Zap,
   Target,
@@ -36,17 +38,77 @@ const getStatusColor = (status: string) => {
 
 const Campaigns = () => {
   const navigate = useNavigate();
+  
+  // Date range management
+  const {
+    preset,
+    customRange,
+    comparisonEnabled,
+    currentRange,
+    previousRange,
+    apiParams,
+    previousApiParams,
+    setPreset,
+    setCustomRange,
+    setComparisonEnabled,
+  } = useDateRange();
 
-  // Fetch campaigns data
+  // Helper function to format date without timezone issues
+  const formatLocalDate = (date: Date): string => {
+    const year = date.getFullYear();
+    const month = String(date.getMonth() + 1).padStart(2, '0');
+    const day = String(date.getDate()).padStart(2, '0');
+    return `${year}-${month}-${day}`;
+  };
+
+  // Helper function to format display date based on filter
+  const getDisplayDateRange = () => {
+    if (preset === 'custom' && currentRange.from && currentRange.to) {
+      const from = formatLocalDate(currentRange.from);
+      const to = formatLocalDate(currentRange.to);
+      return from === to ? from : `${from} - ${to}`;
+    }
+    
+    const today = new Date();
+    const todayStr = formatLocalDate(today);
+    
+    switch (preset) {
+      case 'today':
+        return todayStr;
+      case 'yesterday':
+        const yesterday = new Date(today);
+        yesterday.setDate(yesterday.getDate() - 1);
+        return formatLocalDate(yesterday);
+      case 'last_7_days':
+        const last7Days = new Date(today);
+        last7Days.setDate(last7Days.getDate() - 7);
+        return `${formatLocalDate(last7Days)} - ${todayStr}`;
+      case 'last_30_days':
+        const last30Days = new Date(today);
+        last30Days.setDate(last30Days.getDate() - 30);
+        return `${formatLocalDate(last30Days)} - ${todayStr}`;
+      case 'this_month':
+        const startOfMonth = new Date(today.getFullYear(), today.getMonth(), 1);
+        return `${formatLocalDate(startOfMonth)} - ${todayStr}`;
+      case 'last_month':
+        const startOfLastMonth = new Date(today.getFullYear(), today.getMonth() - 1, 1);
+        const endOfLastMonth = new Date(today.getFullYear(), today.getMonth(), 0);
+        return `${formatLocalDate(startOfLastMonth)} - ${formatLocalDate(endOfLastMonth)}`;
+      default:
+        return 'All time';
+    }
+  };
+
+  // Fetch campaigns data with date filtering
   const { data: campaigns = [], isLoading: campaignsLoading, error: campaignsError } = useQuery<Campaign[]>({
-    queryKey: ['campaigns'],
-    queryFn: campaignsApi.getCampaigns,
+    queryKey: ['campaigns', apiParams],
+    queryFn: () => campaignsApi.getCampaigns(apiParams),
   });
 
-  // Fetch campaign stats
+  // Fetch campaign stats with date filtering
   const { data: campaignStats, isLoading: statsLoading } = useQuery<CampaignStats>({
-    queryKey: ['campaign-stats'],
-    queryFn: campaignsApi.getStats,
+    queryKey: ['campaign-stats', apiParams],
+    queryFn: () => campaignsApi.getStats(apiParams),
   });
 
   // Loading state
@@ -86,7 +148,17 @@ const Campaigns = () => {
             Manage and optimize your marketing campaigns
           </p>
         </div>
-        <CUAChat />
+        <div className="flex items-center gap-4">
+          <DateRangePicker
+            currentPreset={preset}
+            onPresetChange={setPreset}
+            value={customRange}
+            onChange={setCustomRange}
+            comparisonEnabled={comparisonEnabled}
+            onComparisonToggle={setComparisonEnabled}
+          />
+          <CUAChat />
+        </div>
       </div>
 
       {/* Quick Stats */}
@@ -174,7 +246,7 @@ const Campaigns = () => {
                     <div className="flex items-center gap-4 text-sm text-muted-foreground">
                       <div className="flex items-center gap-1">
                         <Calendar className="w-4 h-4" />
-                        {campaign.startDate} - {campaign.endDate}
+                        {getDisplayDateRange()}
                       </div>
                     </div>
                   </div>

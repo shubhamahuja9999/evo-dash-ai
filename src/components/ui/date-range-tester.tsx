@@ -2,8 +2,8 @@ import React, { useState } from 'react'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Badge } from '@/components/ui/badge'
-import { analyticsApi } from '@/lib/api'
-import { PlayCircle, CheckCircle, XCircle, Loader2 } from 'lucide-react'
+import { analyticsApi, campaignsApi } from '@/lib/api'
+import { PlayCircle, CheckCircle, XCircle, Loader2, Database } from 'lucide-react'
 
 interface TestResult {
   endpoint: string
@@ -53,6 +53,21 @@ export function DateRangeTester() {
       params: { dateRange: 'last_7_days' },
       endpoint: 'stats'
     },
+    {
+      name: 'Campaigns - Today',
+      params: { dateRange: 'today' },
+      endpoint: 'campaigns'
+    },
+    {
+      name: 'Campaigns - Last 30 Days',
+      params: { dateRange: 'last_30_days' },
+      endpoint: 'campaigns'
+    },
+    {
+      name: 'Campaign Stats - This Month',
+      params: { dateRange: 'this_month' },
+      endpoint: 'campaign_stats'
+    },
   ]
 
   const runTests = async () => {
@@ -74,6 +89,10 @@ export function DateRangeTester() {
           data = await analyticsApi.getAnalytics(testCase.params)
         } else if (testCase.endpoint === 'stats') {
           data = await analyticsApi.getStats(testCase.params)
+        } else if (testCase.endpoint === 'campaigns') {
+          data = await campaignsApi.getCampaigns(testCase.params)
+        } else if (testCase.endpoint === 'campaign_stats') {
+          data = await campaignsApi.getStats(testCase.params)
         }
 
         setTestResults(prev => prev.map(r => 
@@ -125,6 +144,48 @@ export function DateRangeTester() {
     setIsRunning(false)
   }
 
+  const seedSampleData = async () => {
+    setIsRunning(true)
+    
+    const result: TestResult = {
+      endpoint: 'Seed Sample Data',
+      params: { action: 'seed_database' },
+      status: 'loading'
+    }
+
+    setTestResults([result])
+
+    try {
+      // Call the server to run the seeding script
+      const response = await fetch(`${import.meta.env.VITE_API_BASE_URL || 'http://localhost:3001'}/api/seed-data`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+      })
+
+      if (!response.ok) {
+        throw new Error(`HTTP error! status: ${response.status}`)
+      }
+
+      const data = await response.text()
+      
+      setTestResults([{ 
+        ...result, 
+        status: 'success', 
+        data: { message: 'Sample data seeded successfully!', output: data }
+      }])
+    } catch (error) {
+      setTestResults([{ 
+        ...result, 
+        status: 'error', 
+        error: error instanceof Error ? error.message : 'Unknown error'
+      }])
+    }
+
+    setIsRunning(false)
+  }
+
   const getStatusIcon = (status: TestResult['status']) => {
     switch (status) {
       case 'loading':
@@ -142,12 +203,19 @@ export function DateRangeTester() {
     const variants = {
       idle: 'secondary',
       loading: 'default',
-      success: 'success',
+      success: 'default',
       error: 'destructive'
     } as const
 
+    const colors = {
+      idle: '',
+      loading: 'text-blue-600',
+      success: 'text-green-600 bg-green-50',
+      error: 'text-red-600'
+    }
+
     return (
-      <Badge variant={variants[status]}>
+      <Badge variant={variants[status]} className={colors[status]}>
         {status.toUpperCase()}
       </Badge>
     )
@@ -177,6 +245,15 @@ export function DateRangeTester() {
           >
             {isRunning ? <Loader2 className="w-4 h-4 animate-spin" /> : <PlayCircle className="w-4 h-4" />}
             Test Comparison
+          </Button>
+          <Button 
+            onClick={seedSampleData} 
+            disabled={isRunning}
+            variant="secondary"
+            className="flex items-center gap-2"
+          >
+            {isRunning ? <Loader2 className="w-4 h-4 animate-spin" /> : <Database className="w-4 h-4" />}
+            Seed Sample Data
           </Button>
         </div>
       </CardHeader>
