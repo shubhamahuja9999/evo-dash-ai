@@ -1,6 +1,11 @@
 import { spawn } from 'child_process';
 import { PrismaClient } from '@prisma/client';
 import path from 'path';
+import { fileURLToPath } from 'url';
+import { dirname } from 'path';
+
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = dirname(__filename);
 
 const prisma = new PrismaClient();
 

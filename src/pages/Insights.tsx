@@ -269,11 +269,13 @@ export const LayoutGrid = ({ cards }: { cards: Card[] }) => {
       const updatedCard = { 
         ...card,
         content: (
-          <div className="space-y-4 py-4">
-            <h2 className="text-2xl font-bold">{card.title}</h2>
-            {renderInsightContent(card.type, response.response)}
-            <p className="text-sm opacity-70 mt-4">Generated from analysis of marketing expert essays</p>
-          </div>
+                        <div className="space-y-6 p-6 max-h-[80vh] overflow-y-auto">
+                <h2 className="text-2xl font-bold">{card.title}</h2>
+                <div className="prose prose-invert">
+                  {renderInsightContent(card.type, response.response)}
+                </div>
+                <p className="text-sm opacity-70 mt-4 text-center">Generated from analysis of marketing expert essays</p>
+              </div>
         )
       };
       
@@ -321,7 +323,7 @@ export const LayoutGrid = ({ cards }: { cards: Card[] }) => {
   };
 
   return (
-    <div className="w-full h-full p-4 grid grid-cols-1 md:grid-cols-3 max-w-7xl mx-auto gap-4 relative">
+    <div className="w-full h-full p-6 grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 max-w-[90rem] mx-auto gap-6 relative">
       {cards.map((card) => (
         <div key={card.id} className={cn(card.className, "")}>
           <motion.div
@@ -329,10 +331,10 @@ export const LayoutGrid = ({ cards }: { cards: Card[] }) => {
             className={cn(
               "relative overflow-hidden cursor-pointer",
               selected?.id === card.id
-                ? "rounded-lg absolute inset-0 h-1/2 w-full md:w-1/2 m-auto z-50 flex justify-center items-center flex-wrap flex-col"
+                ? "rounded-lg absolute inset-0 h-[80vh] w-full md:w-[80%] lg:w-[70%] m-auto z-50 flex justify-center items-center flex-wrap flex-col"
                 : lastSelected?.id === card.id
                 ? "z-40 rounded-xl h-full w-full"
-                : "rounded-xl h-full w-full"
+                : "rounded-xl h-full w-full min-h-[200px]"
             )}
             layoutId={`card-${card.id}`}
             style={{ 
@@ -347,11 +349,12 @@ export const LayoutGrid = ({ cards }: { cards: Card[] }) => {
             ) : selected?.id === card.id ? (
               <SelectedCard selected={selected} />
             ) : (
-              <div className="p-6 h-full flex flex-col items-center justify-center text-white">
-                <div className="mb-4 text-4xl">
+              <div className="p-8 h-full flex flex-col items-center justify-center text-white">
+                <div className="mb-6 text-5xl">
                   {card.icon}
                 </div>
-                <h3 className="text-xl font-semibold text-center">{card.title}</h3>
+                <h3 className="text-2xl font-semibold text-center">{card.title}</h3>
+                <p className="mt-4 text-sm text-center opacity-80">Click to generate insights</p>
               </div>
             )}
           </motion.div>

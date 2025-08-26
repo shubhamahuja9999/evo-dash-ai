@@ -1,11 +1,16 @@
 import express from 'express';
 import cors from 'cors';
 import { PrismaClient } from '@prisma/client';
-import { generateAIResponse } from './openai';
+import { generateAIResponse } from './openai.js';
 import { exec } from 'child_process';
 import fs from 'fs';
 import path from 'path';
-import { campaignService } from './campaign-service';
+import { fileURLToPath } from 'url';
+import { dirname } from 'path';
+import { campaignService } from './campaign-service.js';
+
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = dirname(__filename);
 
 const app = express();
 const prisma = new PrismaClient();
@@ -734,23 +739,14 @@ app.post('/api/insights/generate', async (req, res) => {
     const { insightType, campaignData, analyticsData } = req.body;
     console.log(`Generating ${insightType} insights from essays`, { campaignData, analyticsData });
     
-    // Read all essay files
-    const essaysDir = path.join(__dirname, '..', 'essays');
-    console.log('Looking for essays in:', essaysDir);
-    
-    // Check if directory exists
-    if (!fs.existsSync(essaysDir)) {
-      console.error(`Essays directory not found: ${essaysDir}`);
-      throw new Error(`Essays directory not found: ${essaysDir}`);
-    }
-    
-    const essayFiles = fs.readdirSync(essaysDir).filter(file => file.endsWith('.txt'));
+    // Read all essay files from project root
+    const essayFiles = fs.readdirSync('essays').filter(file => file.endsWith('.txt'));
     console.log('Found essay files:', essayFiles);
     
     // Read content from essay files
     let essayContents: Array<{author: string, content: string}> = [];
     for (const file of essayFiles) {
-      const content = fs.readFileSync(path.join(essaysDir, file), 'utf-8');
+      const content = fs.readFileSync(`essays/${file}`, 'utf-8');
       essayContents.push({
         author: file.replace('.txt', ''),
         content
@@ -766,195 +762,225 @@ app.post('/api/insights/generate', async (req, res) => {
       });
     }
     
-    // Create a prompt based on the insight type
-    let prompt = '';
-    
+    // Create a prompt based on the insight type and campaign data
+    let prompt = `You are an expert marketing consultant analyzing campaign performance and expert essays.
+
+Current Campaign Performance Summary:
+${campaigns.map(c => `
+- ${c.name}:
+  Budget: ${c.budget}
+  Spent: ${c.spent}
+  Impressions: ${c.impressions}
+  Clicks: ${c.clicks}
+  CTR: ${c.ctr}
+  Conversions: ${c.conversions}
+  Conv. Value: ${c.conversionValue}`).join('\n')}
+
+Overall Analytics:
+- Total Revenue: ${analyticsData.revenue}
+- Conversion Rate: ${analyticsData.conversionRate}
+- AI Score: ${analyticsData.aiScore}
+
+Based on this performance data and the marketing expert essays, `;
+
     switch (insightType) {
       case 'opportunity':
-        prompt = `You are an expert marketing consultant analyzing a collection of essays by marketing experts. 
-        Based on these essays, identify 3-5 specific marketing OPPORTUNITIES that could be leveraged.
-        
-        Focus on actionable opportunities that are:
-        1. Backed by specific insights from the essays
-        2. Relevant to modern B2B marketing
-        3. Practical to implement
-        
-        For each opportunity:
-        - Provide a clear, concise title
-        - Explain the opportunity in 2-3 sentences
-        - Include a specific quote or reference from the essays
-        - Estimate the potential impact (high/medium/low)
-        - Suggest how to measure success
-        
-        Format your response as JSON with the structure:
-        {
-          "opportunities": [
-            {
-              "title": "Opportunity title",
-              "description": "Description of the opportunity",
-              "source": "Author name and specific reference",
-              "impact": "high|medium|low",
-              "measurement": "How to measure success"
-            }
-          ]
-        }`;
+        prompt += `identify 3-5 specific OPPORTUNITIES to improve campaign performance.
+
+Focus on actionable opportunities that:
+1. Address current performance gaps or underutilized potential
+2. Leverage insights from both data and expert essays
+3. Have clear implementation paths
+
+For each opportunity:
+- Title: Clear, action-oriented title
+- Description: Explain the opportunity and why it matters
+- Data Evidence: Specific metrics/trends from the campaigns that support this
+- Expert Support: Relevant quote/insight from the essays
+- Impact Estimate: high/medium/low with projected metrics
+- Success Metrics: How to measure the impact
+
+Format as JSON:
+{
+  "opportunities": [
+    {
+      "title": "Opportunity title",
+      "description": "Description and importance",
+      "dataEvidence": "Supporting campaign metrics",
+      "expertSupport": "Quote from essays",
+      "impact": "high|medium|low",
+      "projectedMetrics": "Expected improvements",
+      "successMetrics": "How to measure"
+    }
+  ]
+}`;
         break;
         
       case 'alert':
-        prompt = `You are an expert marketing consultant analyzing a collection of essays by marketing experts.
-        Based on these essays, identify 3-5 specific WARNINGS or RISKS that marketers should be aware of.
-        
-        Focus on critical warnings that are:
-        1. Backed by specific insights from the essays
-        2. Relevant to modern B2B marketing
-        3. Potentially damaging if ignored
-        
-        For each warning:
-        - Provide a clear, alarming title
-        - Explain the risk in 2-3 sentences
-        - Include a specific quote or reference from the essays
-        - Estimate the potential severity (high/medium/low)
-        - Suggest how to mitigate the risk
-        
-        Format your response as JSON with the structure:
-        {
-          "warnings": [
-            {
-              "title": "Warning title",
-              "description": "Description of the risk",
-              "source": "Author name and specific reference",
-              "severity": "high|medium|low",
-              "mitigation": "How to mitigate this risk"
-            }
-          ]
-        }`;
+        prompt += `identify 3-5 critical WARNINGS based on current performance issues.
+
+Focus on risks that:
+1. Are evident in current campaign metrics
+2. Match patterns discussed in expert essays
+3. Need immediate attention
+
+For each warning:
+- Title: Clear, attention-grabbing title
+- Description: Explain the risk and potential impact
+- Data Evidence: Metrics showing the problem
+- Expert Warning: Related cautions from essays
+- Severity: high/medium/low with potential impact
+- Mitigation: Specific steps to address
+
+Format as JSON:
+{
+  "warnings": [
+    {
+      "title": "Warning title",
+      "description": "Risk description",
+      "dataEvidence": "Problem metrics",
+      "expertWarning": "Quote from essays",
+      "severity": "high|medium|low",
+      "potentialImpact": "What could happen",
+      "mitigation": "How to fix"
+    }
+  ]
+}`;
         break;
         
       case 'insight':
-        prompt = `You are an expert marketing consultant analyzing a collection of essays by marketing experts.
-        Based on these essays, extract 3-5 key INSIGHTS about modern marketing practices.
-        
-        Focus on valuable insights that are:
-        1. Backed by specific points from the essays
-        2. Relevant to modern B2B marketing
-        3. Not obvious to the average marketer
-        
-        For each insight:
-        - Provide a clear, insightful title
-        - Explain the insight in 2-3 sentences
-        - Include a specific quote or reference from the essays
-        - Estimate the relevance (high/medium/low)
-        - Explain why this insight matters
-        
-        Format your response as JSON with the structure:
-        {
-          "insights": [
-            {
-              "title": "Insight title",
-              "description": "Description of the insight",
-              "source": "Author name and specific reference",
-              "relevance": "high|medium|low",
-              "importance": "Why this insight matters"
-            }
-          ]
-        }`;
+        prompt += `extract 3-5 key INSIGHTS by combining campaign data with expert knowledge.
+
+Focus on insights that:
+1. Explain current performance patterns
+2. Connect campaign data with expert observations
+3. Reveal non-obvious opportunities
+
+For each insight:
+- Title: Clear, descriptive title
+- Description: Explain the insight
+- Data Pattern: Supporting metrics/trends
+- Expert Context: Related insights from essays
+- Relevance: high/medium/low with explanation
+- Action Items: How to use this insight
+
+Format as JSON:
+{
+  "insights": [
+    {
+      "title": "Insight title",
+      "description": "Main insight",
+      "dataPattern": "Supporting metrics",
+      "expertContext": "Quote from essays",
+      "relevance": "high|medium|low",
+      "actionItems": "How to apply"
+    }
+  ]
+}`;
         break;
         
       case 'recommendation':
-        prompt = `You are an expert marketing consultant analyzing a collection of essays by marketing experts.
-        Based on these essays, provide 3-5 specific RECOMMENDATIONS for marketing strategies.
-        
-        Focus on actionable recommendations that are:
-        1. Backed by specific insights from the essays
-        2. Relevant to modern B2B marketing
-        3. Practical to implement
-        
-        For each recommendation:
-        - Provide a clear, directive title
-        - Explain the recommendation in 2-3 sentences
-        - Include a specific quote or reference from the essays
-        - Estimate the priority (high/medium/low)
-        - Outline the first steps to implement
-        
-        Format your response as JSON with the structure:
-        {
-          "recommendations": [
-            {
-              "title": "Recommendation title",
-              "description": "Description of the recommendation",
-              "source": "Author name and specific reference",
-              "priority": "high|medium|low",
-              "implementation": "First steps to implement"
-            }
-          ]
-        }`;
+        prompt += `provide 3-5 specific RECOMMENDATIONS to optimize campaign performance.
+
+Focus on recommendations that:
+1. Address current performance challenges
+2. Apply expert best practices to real data
+3. Have clear implementation steps
+
+For each recommendation:
+- Title: Clear, actionable title
+- Description: What to do and why
+- Current State: Relevant metrics
+- Expert Backing: Supporting insights from essays
+- Priority: high/medium/low with reasoning
+- Implementation: Step-by-step plan
+
+Format as JSON:
+{
+  "recommendations": [
+    {
+      "title": "Recommendation title",
+      "description": "What and why",
+      "currentState": "Relevant metrics",
+      "expertBacking": "Quote from essays",
+      "priority": "high|medium|low",
+      "implementation": "How to execute"
+    }
+  ]
+}`;
         break;
         
       case 'success':
-        prompt = `You are an expert marketing consultant analyzing a collection of essays by marketing experts.
-        Based on these essays, extract 3-5 SUCCESS STORIES or case studies mentioned.
-        
-        Focus on success stories that are:
-        1. Backed by specific examples from the essays
-        2. Relevant to modern B2B marketing
-        3. Contain clear cause-and-effect relationships
-        
-        For each success story:
-        - Provide a clear, compelling title
-        - Summarize the success story in 2-3 sentences
-        - Include a specific quote or reference from the essays
-        - Identify the key factors that led to success
-        - Extract the main lesson learned
-        
-        Format your response as JSON with the structure:
-        {
-          "successStories": [
-            {
-              "title": "Success story title",
-              "description": "Description of the success story",
-              "source": "Author name and specific reference",
-              "keyFactors": "Factors that led to success",
-              "lesson": "Main lesson learned"
-            }
-          ]
-        }`;
+        prompt += `identify successful patterns in current campaigns and relate them to expert insights.
+
+Focus on successes that:
+1. Show in current campaign metrics
+2. Match patterns described in essays
+3. Can be replicated or expanded
+
+For each success:
+- Title: Clear, descriptive title
+- Description: What's working well
+- Performance Data: Supporting metrics
+- Expert Validation: Related success stories
+- Key Factors: Why it's working
+- Next Steps: How to build on success
+
+Format as JSON:
+{
+  "successStories": [
+    {
+      "title": "Success story title",
+      "description": "What's working",
+      "performanceData": "Supporting metrics",
+      "expertValidation": "Quote from essays",
+      "keyFactors": "Why it works",
+      "nextSteps": "How to expand"
+    }
+  ]
+}`;
         break;
         
       case 'analysis':
-        prompt = `You are an expert marketing consultant analyzing a collection of essays by marketing experts.
-        Based on these essays, provide a TREND ANALYSIS of current and emerging marketing trends.
-        
-        Focus on significant trends that are:
-        1. Backed by specific mentions in the essays
-        2. Relevant to modern B2B marketing
-        3. Likely to impact marketing strategies
-        
-        For each trend:
-        - Provide a clear, descriptive title
-        - Explain the trend in 2-3 sentences
-        - Include a specific quote or reference from the essays
-        - Predict the future trajectory (growing/stable/declining)
-        - Suggest how marketers should respond
-        
-        Format your response as JSON with the structure:
-        {
-          "trends": [
-            {
-              "title": "Trend title",
-              "description": "Description of the trend",
-              "source": "Author name and specific reference",
-              "trajectory": "growing|stable|declining",
-              "response": "How marketers should respond"
-            }
-          ]
-        }`;
+        prompt += `analyze current campaign trends and compare with expert predictions.
+
+Focus on trends that:
+1. Are visible in campaign data
+2. Align with expert observations
+3. Have strategic implications
+
+For each trend:
+- Title: Clear, descriptive title
+- Description: What's happening
+- Data Evidence: Supporting metrics
+- Expert Context: Related trends from essays
+- Trajectory: growing/stable/declining with evidence
+- Strategy: Recommended response
+
+Format as JSON:
+{
+  "trends": [
+    {
+      "title": "Trend title",
+      "description": "What's happening",
+      "dataEvidence": "Supporting metrics",
+      "expertContext": "Quote from essays",
+      "trajectory": "growing|stable|declining",
+      "strategy": "How to respond"
+    }
+  ]
+}`;
         break;
         
       default:
-        prompt = `You are an expert marketing consultant analyzing a collection of essays by marketing experts.
-        Based on these essays, provide 3-5 valuable insights that would help a marketing team improve their strategy.
-        
-        Format your response as JSON with insights that include a title, description, source reference, and importance rating.`;
+        prompt += `provide 3-5 valuable insights that combine campaign performance data with expert knowledge.
+
+Format your response as JSON with insights that include:
+- Title and description
+- Supporting campaign metrics
+- Expert quotes/references
+- Importance rating
+- Recommended actions`;
     }
     
     // Add campaign and analytics context if available
@@ -1009,10 +1035,30 @@ app.post('/api/insights/generate', async (req, res) => {
       };
     }
     
+    // Map insight type to RecommendationType
+    let recommendationType: 'BUDGET_OPTIMIZATION' | 'KEYWORD_OPTIMIZATION' | 'AD_COPY_IMPROVEMENT' | 'TARGETING_REFINEMENT' | 'PERFORMANCE_ANALYSIS';
+    
+    switch (insightType.toLowerCase()) {
+      case 'opportunity':
+        recommendationType = 'BUDGET_OPTIMIZATION';
+        break;
+      case 'recommendation':
+        recommendationType = 'AD_COPY_IMPROVEMENT';
+        break;
+      case 'analysis':
+        recommendationType = 'TARGETING_REFINEMENT';
+        break;
+      case 'alert':
+      case 'insight':
+      case 'success':
+      default:
+        recommendationType = 'PERFORMANCE_ANALYSIS';
+    }
+
     // Store the insight in the database
     const insight = await prisma.aIRecommendation.create({
       data: {
-        type: insightType.toUpperCase(),
+        type: recommendationType,
         title: `${insightType.charAt(0).toUpperCase() + insightType.slice(1)} Analysis`,
         description: `AI-generated ${insightType} analysis based on marketing expert essays`,
         content: JSON.stringify(parsedResponse),
@@ -1020,7 +1066,8 @@ app.post('/api/insights/generate', async (req, res) => {
         priority: 'HIGH',
         metadata: {
           category: 'Essay Analysis',
-          source: 'Marketing Essays'
+          source: 'Marketing Essays',
+          originalType: insightType
         }
       }
     });
