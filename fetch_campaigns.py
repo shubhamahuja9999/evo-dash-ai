@@ -52,7 +52,7 @@ def fetch_google_ads_data():
               metrics.conversions,
               metrics.cost_per_conversion
             FROM campaign
-            WHERE segments.date DURING LAST_30_DAYS
+            WHERE segments.date DURING LAST_7_DAYS
             ORDER BY segments.date
         """
         
@@ -167,7 +167,7 @@ async function storeCampaigns(campaignData) {
         
         let totalCampaignsCreated = 0;
         let totalAnalyticsCreated = 0;
-        const processedCampaigns = new Set(); // Track processed campaigns
+        const processedCampaigns = new Map(); // Track processed campaigns
         
         for (const account of campaignData) {
             const customerId = account.customer_id;
@@ -178,68 +178,84 @@ async function storeCampaigns(campaignData) {
             console.log(`Processing account: ${clientName} (${customerId})`);
             console.log(`Data points to process: ${data.length}`);
             
-            // Process each campaign data point
-            for (let i = 0; i < data.length; i++) {
-                const row = data[i];
+            // Group data by campaign for better organization
+            const campaignGroups = new Map();
+            data.forEach(row => {
                 const [date, campaignName, dailyBudget, spent, impressions, clicks, cpc, ctr, conversions, convRate, costPerConv] = row;
-                
-                // Create a unique identifier for the campaign
+                if (!campaignGroups.has(campaignName)) {
+                    campaignGroups.set(campaignName, []);
+                }
+                campaignGroups.get(campaignName).push(row);
+            });
+            
+            console.log(`Found ${campaignGroups.size} unique campaigns`);
+            
+            // Process each campaign
+            for (const [campaignName, campaignData] of campaignGroups) {
                 const campaignUniqueId = `${customerId}_${campaignName}`;
                 
-                // Skip if we've already processed this campaign
-                if (processedCampaigns.has(campaignUniqueId)) {
-                    console.log(`Skipping duplicate campaign: ${campaignName}`);
-                    continue;
-                }
+                console.log(`Processing campaign: ${campaignName} with ${campaignData.length} data points`);
                 
-                console.log(`Processing row ${i + 1}/${data.length}: ${campaignName}`);
-                
-                // Parse numeric values
+                // Get the latest row for campaign metadata
+                const latestRow = campaignData[campaignData.length - 1];
+                const [, , dailyBudget] = latestRow;
                 const budgetNumeric = parseFloat(dailyBudget.replace(/[^0-9.-]/g, '')) || 0;
-                const spentNumeric = parseFloat(spent.replace(/[^0-9.-]/g, '')) || 0;
-                const impressionsNum = parseInt(impressions) || 0;
-                const clicksNum = parseInt(clicks) || 0;
-                const conversionsNum = parseInt(conversions) || 0;
-                const ctrValue = parseFloat(ctr.replace('%', '')) || 0;
-                const cpcValue = parseFloat(cpc.replace(/[^0-9.-]/g, '')) || 0;
-                const costPerConvValue = parseFloat(costPerConv.replace(/[^0-9.-]/g, '')) || 0;
                 
                 try {
-                    // Create new campaign
+                    // Create campaign only once
                     const campaign = await prisma.campaign.create({
                         data: {
                             name: campaignName,
                             status: 'ACTIVE',
                             budget: budgetNumeric,
-                            startDate: new Date(date),
-                            googleAdsId: campaignUniqueId, // Use unique identifier
+                            startDate: new Date(campaignData[0][0]), // First date
+                            endDate: new Date(latestRow[0]), // Last date
+                            googleAdsId: campaignUniqueId,
                             userId: defaultUser.id
                         }
                     });
                     console.log(`Created campaign: ${campaignName} (ID: ${campaign.id})`);
                     totalCampaignsCreated++;
-                    processedCampaigns.add(campaignUniqueId);
+                    processedCampaigns.set(campaignUniqueId, campaign.id);
                     
-                    // Store analytics data
-                    const analytics = await prisma.analytics.create({
-                        data: {
-                            date: new Date(date),
-                            impressions: impressionsNum,
-                            clicks: clicksNum,
-                            cost: spentNumeric,
-                            conversions: conversionsNum,
-                            ctr: ctrValue,
-                            cpc: cpcValue,
-                            campaignId: campaign.id,
-                            userId: defaultUser.id
-                        }
-                    });
-                    console.log(`Created analytics for ${campaignName}: ${analytics.id}`);
-                    totalAnalyticsCreated++;
+                    // Store analytics data for each date
+                    for (const row of campaignData) {
+                        const [date, , , spent, impressions, clicks, cpc, ctr, conversions, convRate, costPerConv] = row;
+                        
+                        // Parse numeric values
+                        const spentNumeric = parseFloat(spent.replace(/[^0-9.-]/g, '')) || 0;
+                        const impressionsNum = parseInt(impressions) || 0;
+                        const clicksNum = parseInt(clicks) || 0;
+                        const conversionsNum = parseFloat(conversions) || 0;
+                        const ctrValue = parseFloat(ctr.replace('%', '')) / 100 || 0; // Store as decimal
+                        const cpcValue = parseFloat(cpc.replace(/[^0-9.-]/g, '')) || 0;
+                        const costPerConvValue = parseFloat(costPerConv.replace(/[^0-9.-]/g, '')) || 0;
+                        
+                        // Calculate conversion value (estimate)
+                        const conversionValue = conversionsNum * (costPerConvValue * 2); // Assume 2x ROI
+                        
+                        const analytics = await prisma.analytics.create({
+                            data: {
+                                date: new Date(date),
+                                impressions: impressionsNum,
+                                clicks: clicksNum,
+                                cost: spentNumeric,
+                                conversions: Math.round(conversionsNum),
+                                conversionValue: conversionValue,
+                                ctr: ctrValue,
+                                cpc: cpcValue,
+                                costPerConversion: costPerConvValue,
+                                campaignId: campaign.id,
+                                userId: defaultUser.id
+                            }
+                        });
+                        totalAnalyticsCreated++;
+                    }
+                    
+                    console.log(`Created ${campaignData.length} analytics records for ${campaignName}`);
                     
                 } catch (error) {
                     console.error(`Error processing campaign ${campaignName}:`, error.message);
-                    console.error('Full error:', error);
                 }
             }
         }

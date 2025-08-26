@@ -23,6 +23,7 @@ export interface DateRangePickerProps {
   value?: DateRange
   onChange?: (range: DateRange | undefined) => void
   onPresetChange?: (preset: string) => void
+  currentPreset?: string
   showComparison?: boolean
   comparisonEnabled?: boolean
   onComparisonToggle?: (enabled: boolean) => void
@@ -43,13 +44,19 @@ export function DateRangePicker({
   value,
   onChange,
   onPresetChange,
+  currentPreset = "last_7_days",
   showComparison = true,
   comparisonEnabled = false,
   onComparisonToggle,
   className,
 }: DateRangePickerProps) {
-  const [selectedPreset, setSelectedPreset] = React.useState("last_7_days")
+  const [selectedPreset, setSelectedPreset] = React.useState(currentPreset)
   const [isCalendarOpen, setIsCalendarOpen] = React.useState(false)
+
+  // Sync with external preset changes
+  React.useEffect(() => {
+    setSelectedPreset(currentPreset)
+  }, [currentPreset])
 
   const handlePresetChange = (preset: string) => {
     setSelectedPreset(preset)

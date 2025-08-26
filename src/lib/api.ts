@@ -84,20 +84,49 @@ export const analyticsApi = {
 
 // Campaigns API
 export const campaignsApi = {
-  getCampaigns: async () => {
-    const response = await fetch(`${API_BASE_URL}/api/campaigns`);
+  getCampaigns: async (dateParams?: DateRangeParams) => {
+    const queryString = dateParams ? buildQueryString(dateParams) : ''
+    const response = await fetch(`${API_BASE_URL}/api/campaigns${queryString}`);
     if (!response.ok) {
       throw new Error('Failed to fetch campaigns');
     }
     return response.json();
   },
 
-  getStats: async () => {
-    const response = await fetch(`${API_BASE_URL}/api/campaigns/stats`);
+  getStats: async (dateParams?: DateRangeParams) => {
+    const queryString = dateParams ? buildQueryString(dateParams) : ''
+    const response = await fetch(`${API_BASE_URL}/api/campaigns/stats${queryString}`);
     if (!response.ok) {
       throw new Error('Failed to fetch campaign stats');
     }
     return response.json();
+  },
+
+  // Method to fetch both current and previous period data for comparison
+  getStatsWithComparison: async (currentParams: DateRangeParams, previousParams?: DateRangeParams) => {
+    const currentPromise = campaignsApi.getStats(currentParams)
+    const previousPromise = previousParams ? campaignsApi.getStats(previousParams) : Promise.resolve(null)
+    
+    const [current, previous] = await Promise.all([currentPromise, previousPromise])
+    
+    return {
+      current,
+      previous,
+      comparison: previous ? {
+        totalConversions: calculatePercentageChange(
+          parseInt(current.totalConversions.replace(/,/g, '')), 
+          parseInt(previous.totalConversions.replace(/,/g, ''))
+        ),
+        totalImpressions: calculatePercentageChange(
+          parseInt(current.totalImpressions.replace(/,/g, '')),
+          parseInt(previous.totalImpressions.replace(/,/g, ''))
+        ),
+        avgCTR: calculatePercentageChange(
+          parseFloat(current.avgCTR.replace('%', '')),
+          parseFloat(previous.avgCTR.replace('%', ''))
+        ),
+      } : null
+    }
   },
 };
 
