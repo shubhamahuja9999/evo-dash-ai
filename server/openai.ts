@@ -17,6 +17,8 @@ export const generateAIResponse = async (
   context: {
     campaignData?: any;
     analyticsData?: any;
+    temperature?: number;
+    max_tokens?: number;
   } = {}
 ) => {
   try {
@@ -58,8 +60,8 @@ Balance technical depth with clarity - explain complex concepts in accessible te
         { role: "system", content: systemPrompt + contextStr + analyticsStr },
         { role: "user", content: userMessage }
       ],
-      temperature: 0.7,
-      max_tokens: 1000,
+      temperature: context.temperature !== undefined ? context.temperature : 0.7,
+      max_tokens: context.max_tokens !== undefined ? context.max_tokens : 1000,
     });
 
     return response.choices[0].message.content || "I apologize, but I couldn't generate a response.";

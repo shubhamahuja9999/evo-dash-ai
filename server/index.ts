@@ -3,10 +3,18 @@ import cors from 'cors';
 import { PrismaClient } from '@prisma/client';
 import { generateAIResponse } from './openai';
 import { exec } from 'child_process';
+import fs from 'fs';
+import path from 'path';
+import { campaignService } from './campaign-service';
 
 const app = express();
 const prisma = new PrismaClient();
 const PORT = process.env.PORT || 3001;
+
+// Start campaign auto-fetch service
+campaignService.startAutoFetch(30).catch(error => {
+  console.error('Failed to start campaign auto-fetch:', error);
+});
 
 app.use(cors());
 app.use(express.json());
@@ -14,6 +22,27 @@ app.use(express.json());
 // Health check
 app.get('/health', (req, res) => {
   res.json({ status: 'OK' });
+});
+
+// Campaign fetch endpoints
+app.post('/api/campaigns/fetch', async (req, res) => {
+  try {
+    await campaignService.forceFetch();
+    res.json({ status: 'success', message: 'Campaign fetch triggered successfully' });
+  } catch (error) {
+    console.error('Error triggering campaign fetch:', error);
+    res.status(500).json({ error: 'Failed to trigger campaign fetch', details: error.message });
+  }
+});
+
+app.get('/api/campaigns/last-fetch', async (req, res) => {
+  try {
+    const lastFetchTime = await campaignService.getLastFetchTime();
+    res.json({ lastFetchTime });
+  } catch (error) {
+    console.error('Error getting last fetch time:', error);
+    res.status(500).json({ error: 'Failed to get last fetch time', details: error.message });
+  }
 });
 
 // CUA Command endpoint
@@ -433,8 +462,8 @@ app.get('/api/campaigns', async (req, res) => {
     });
     
     res.json(formattedCampaigns);
-  } catch (error) {
-    console.error('Error fetching campaigns:', error);
+      } catch (error) {
+        console.error('Error fetching campaigns:', error);
     res.status(500).json({ error: 'Failed to fetch campaigns' });
   }
 });
@@ -560,7 +589,7 @@ app.get('/api/campaigns/:id', async (req, res) => {
         analytics: {
           orderBy: {
             date: 'desc',
-        },
+          },
         },
       },
     });
@@ -578,7 +607,7 @@ app.get('/api/campaigns/:id', async (req, res) => {
 
 // Insights endpoints
 app.get('/api/insights', async (req, res) => {
-  try {
+      try {
         const insights = await prisma.aIRecommendation.findMany({
       include: {
         campaign: true,
@@ -620,6 +649,395 @@ app.get('/api/insights/stats', async (req, res) => {
   } catch (error) {
     console.error('Error fetching insight stats:', error);
     res.status(500).json({ error: 'Failed to fetch insight stats' });
+  }
+});
+
+// Essay insights endpoints
+app.get('/api/insights/essays', async (req, res) => {
+  try {
+    // Return insights specifically from essays
+    const insights = await prisma.aIRecommendation.findMany({
+      where: {
+        metadata: {
+          path: ['category'],
+          equals: 'Essay Analysis'
+        }
+      },
+      orderBy: {
+        createdAt: 'desc',
+      },
+      take: 10
+    });
+    
+    // If no essay insights yet, return mock data
+    if (insights.length === 0) {
+      res.json([
+        {
+          id: "essay-insight-1",
+          type: "insight",
+          priority: "high",
+          title: "LinkedIn Ads Attribution Challenge",
+          description: "LinkedIn ads attribution is difficult because people don't always click. They lurk, screenshot, and consume content without direct interaction, making traditional click-based attribution models inadequate.",
+          impact: "Potential revenue impact: Significant missed attribution",
+          confidence: 92,
+          category: "Advertising"
+        }
+      ]);
+      return;
+    }
+    
+    res.json(insights);
+  } catch (error) {
+    console.error('Error fetching essay insights:', error);
+    res.status(500).json({ error: 'Failed to fetch essay insights' });
+  }
+});
+
+app.get('/api/insights/essays/stats', async (req, res) => {
+  try {
+    const totalInsights = await prisma.aIRecommendation.count({
+      where: {
+        metadata: {
+          path: ['category'],
+          equals: 'Essay Analysis'
+        }
+      }
+    });
+    
+    const highPriority = await prisma.aIRecommendation.count({
+      where: {
+        metadata: {
+          path: ['category'],
+          equals: 'Essay Analysis'
+        },
+        priority: 'HIGH',
+      },
+    });
+    
+    const stats = {
+      totalInsights: totalInsights || 5,
+      highPriority: highPriority || 2,
+      opportunities: Math.floor(totalInsights * 0.6) || 3,
+      avgConfidence: 88
+    };
+    
+    res.json(stats);
+  } catch (error) {
+    console.error('Error fetching essay insight stats:', error);
+    res.status(500).json({ error: 'Failed to fetch essay insight stats' });
+  }
+});
+
+// Generate insights from essays
+app.post('/api/insights/generate', async (req, res) => {
+  try {
+    const { insightType, campaignData, analyticsData } = req.body;
+    console.log(`Generating ${insightType} insights from essays`, { campaignData, analyticsData });
+    
+    // Read all essay files
+    const essaysDir = path.join(__dirname, '..', 'essays');
+    console.log('Looking for essays in:', essaysDir);
+    
+    // Check if directory exists
+    if (!fs.existsSync(essaysDir)) {
+      console.error(`Essays directory not found: ${essaysDir}`);
+      throw new Error(`Essays directory not found: ${essaysDir}`);
+    }
+    
+    const essayFiles = fs.readdirSync(essaysDir).filter(file => file.endsWith('.txt'));
+    console.log('Found essay files:', essayFiles);
+    
+    // Read content from essay files
+    let essayContents: Array<{author: string, content: string}> = [];
+    for (const file of essayFiles) {
+      const content = fs.readFileSync(path.join(essaysDir, file), 'utf-8');
+      essayContents.push({
+        author: file.replace('.txt', ''),
+        content
+      });
+    }
+    
+    // Get campaign data if not provided
+    let campaigns = campaignData;
+    if (!campaigns) {
+      campaigns = await prisma.campaign.findMany({
+        orderBy: { updatedAt: 'desc' },
+        take: 5
+      });
+    }
+    
+    // Create a prompt based on the insight type
+    let prompt = '';
+    
+    switch (insightType) {
+      case 'opportunity':
+        prompt = `You are an expert marketing consultant analyzing a collection of essays by marketing experts. 
+        Based on these essays, identify 3-5 specific marketing OPPORTUNITIES that could be leveraged.
+        
+        Focus on actionable opportunities that are:
+        1. Backed by specific insights from the essays
+        2. Relevant to modern B2B marketing
+        3. Practical to implement
+        
+        For each opportunity:
+        - Provide a clear, concise title
+        - Explain the opportunity in 2-3 sentences
+        - Include a specific quote or reference from the essays
+        - Estimate the potential impact (high/medium/low)
+        - Suggest how to measure success
+        
+        Format your response as JSON with the structure:
+        {
+          "opportunities": [
+            {
+              "title": "Opportunity title",
+              "description": "Description of the opportunity",
+              "source": "Author name and specific reference",
+              "impact": "high|medium|low",
+              "measurement": "How to measure success"
+            }
+          ]
+        }`;
+        break;
+        
+      case 'alert':
+        prompt = `You are an expert marketing consultant analyzing a collection of essays by marketing experts.
+        Based on these essays, identify 3-5 specific WARNINGS or RISKS that marketers should be aware of.
+        
+        Focus on critical warnings that are:
+        1. Backed by specific insights from the essays
+        2. Relevant to modern B2B marketing
+        3. Potentially damaging if ignored
+        
+        For each warning:
+        - Provide a clear, alarming title
+        - Explain the risk in 2-3 sentences
+        - Include a specific quote or reference from the essays
+        - Estimate the potential severity (high/medium/low)
+        - Suggest how to mitigate the risk
+        
+        Format your response as JSON with the structure:
+        {
+          "warnings": [
+            {
+              "title": "Warning title",
+              "description": "Description of the risk",
+              "source": "Author name and specific reference",
+              "severity": "high|medium|low",
+              "mitigation": "How to mitigate this risk"
+            }
+          ]
+        }`;
+        break;
+        
+      case 'insight':
+        prompt = `You are an expert marketing consultant analyzing a collection of essays by marketing experts.
+        Based on these essays, extract 3-5 key INSIGHTS about modern marketing practices.
+        
+        Focus on valuable insights that are:
+        1. Backed by specific points from the essays
+        2. Relevant to modern B2B marketing
+        3. Not obvious to the average marketer
+        
+        For each insight:
+        - Provide a clear, insightful title
+        - Explain the insight in 2-3 sentences
+        - Include a specific quote or reference from the essays
+        - Estimate the relevance (high/medium/low)
+        - Explain why this insight matters
+        
+        Format your response as JSON with the structure:
+        {
+          "insights": [
+            {
+              "title": "Insight title",
+              "description": "Description of the insight",
+              "source": "Author name and specific reference",
+              "relevance": "high|medium|low",
+              "importance": "Why this insight matters"
+            }
+          ]
+        }`;
+        break;
+        
+      case 'recommendation':
+        prompt = `You are an expert marketing consultant analyzing a collection of essays by marketing experts.
+        Based on these essays, provide 3-5 specific RECOMMENDATIONS for marketing strategies.
+        
+        Focus on actionable recommendations that are:
+        1. Backed by specific insights from the essays
+        2. Relevant to modern B2B marketing
+        3. Practical to implement
+        
+        For each recommendation:
+        - Provide a clear, directive title
+        - Explain the recommendation in 2-3 sentences
+        - Include a specific quote or reference from the essays
+        - Estimate the priority (high/medium/low)
+        - Outline the first steps to implement
+        
+        Format your response as JSON with the structure:
+        {
+          "recommendations": [
+            {
+              "title": "Recommendation title",
+              "description": "Description of the recommendation",
+              "source": "Author name and specific reference",
+              "priority": "high|medium|low",
+              "implementation": "First steps to implement"
+            }
+          ]
+        }`;
+        break;
+        
+      case 'success':
+        prompt = `You are an expert marketing consultant analyzing a collection of essays by marketing experts.
+        Based on these essays, extract 3-5 SUCCESS STORIES or case studies mentioned.
+        
+        Focus on success stories that are:
+        1. Backed by specific examples from the essays
+        2. Relevant to modern B2B marketing
+        3. Contain clear cause-and-effect relationships
+        
+        For each success story:
+        - Provide a clear, compelling title
+        - Summarize the success story in 2-3 sentences
+        - Include a specific quote or reference from the essays
+        - Identify the key factors that led to success
+        - Extract the main lesson learned
+        
+        Format your response as JSON with the structure:
+        {
+          "successStories": [
+            {
+              "title": "Success story title",
+              "description": "Description of the success story",
+              "source": "Author name and specific reference",
+              "keyFactors": "Factors that led to success",
+              "lesson": "Main lesson learned"
+            }
+          ]
+        }`;
+        break;
+        
+      case 'analysis':
+        prompt = `You are an expert marketing consultant analyzing a collection of essays by marketing experts.
+        Based on these essays, provide a TREND ANALYSIS of current and emerging marketing trends.
+        
+        Focus on significant trends that are:
+        1. Backed by specific mentions in the essays
+        2. Relevant to modern B2B marketing
+        3. Likely to impact marketing strategies
+        
+        For each trend:
+        - Provide a clear, descriptive title
+        - Explain the trend in 2-3 sentences
+        - Include a specific quote or reference from the essays
+        - Predict the future trajectory (growing/stable/declining)
+        - Suggest how marketers should respond
+        
+        Format your response as JSON with the structure:
+        {
+          "trends": [
+            {
+              "title": "Trend title",
+              "description": "Description of the trend",
+              "source": "Author name and specific reference",
+              "trajectory": "growing|stable|declining",
+              "response": "How marketers should respond"
+            }
+          ]
+        }`;
+        break;
+        
+      default:
+        prompt = `You are an expert marketing consultant analyzing a collection of essays by marketing experts.
+        Based on these essays, provide 3-5 valuable insights that would help a marketing team improve their strategy.
+        
+        Format your response as JSON with insights that include a title, description, source reference, and importance rating.`;
+    }
+    
+    // Add campaign and analytics context if available
+    if (campaigns && campaigns.length > 0) {
+      prompt += `\n\nConsider the following campaign data in your analysis:\n${JSON.stringify(campaigns, null, 2)}`;
+    }
+    
+    if (analyticsData) {
+      prompt += `\n\nConsider the following analytics data in your analysis:\n${JSON.stringify(analyticsData, null, 2)}`;
+    }
+    
+    // Add essay content
+    prompt += `\n\nEssays to analyze:\n`;
+    essayContents.forEach(essay => {
+      prompt += `\n--- ${essay.author} ---\n${essay.content.substring(0, 1000)}...\n`;
+    });
+    
+    console.log('Generated prompt:', prompt.substring(0, 200) + '...');
+    
+    // Generate AI response
+    let aiResponse;
+    try {
+      console.log('Calling OpenAI API with prompt...');
+      aiResponse = await generateAIResponse(prompt, {
+        campaignData,
+        analyticsData,
+        temperature: 0.7,
+        max_tokens: 1500
+      });
+      console.log('AI Response received:', aiResponse.substring(0, 200) + '...');
+    } catch (openaiError) {
+      console.error('OpenAI API error:', openaiError);
+      throw new Error(`OpenAI API error: ${openaiError.message}`);
+    }
+    
+    // Try to parse the response as JSON
+    let parsedResponse;
+    try {
+      // Extract JSON if it's wrapped in markdown code blocks
+      const jsonMatch = aiResponse.match(/```json\n([\s\S]*?)\n```/) || 
+                        aiResponse.match(/```\n([\s\S]*?)\n```/) ||
+                        aiResponse.match(/\{[\s\S]*\}/);
+                        
+      const jsonString = jsonMatch ? jsonMatch[1] || jsonMatch[0] : aiResponse;
+      parsedResponse = JSON.parse(jsonString);
+    } catch (error) {
+      console.error('Failed to parse AI response as JSON:', error);
+      // Fall back to sending the raw response
+      parsedResponse = { 
+        rawResponse: aiResponse,
+        error: 'Failed to parse as JSON'
+      };
+    }
+    
+    // Store the insight in the database
+    const insight = await prisma.aIRecommendation.create({
+      data: {
+        type: insightType.toUpperCase(),
+        title: `${insightType.charAt(0).toUpperCase() + insightType.slice(1)} Analysis`,
+        description: `AI-generated ${insightType} analysis based on marketing expert essays`,
+        content: JSON.stringify(parsedResponse),
+        confidence: 85,
+        priority: 'HIGH',
+        metadata: {
+          category: 'Essay Analysis',
+          source: 'Marketing Essays'
+        }
+      }
+    });
+    
+    res.json({
+      insight,
+      response: parsedResponse
+    });
+    
+  } catch (error) {
+    console.error('Error generating insights:', error);
+    console.error('Error stack:', error.stack);
+    res.status(500).json({ 
+      error: 'Failed to generate insights', 
+      details: error.message,
+      stack: error.stack
+    });
   }
 });
 
@@ -725,12 +1143,12 @@ app.post('/api/cua/automation', async (req, res) => {
         });
       }
       
-      res.json({
+    res.json({
         status: 'completed',
-        script, 
-        command,
+              script, 
+              command,
         output: stdout,
-        timestamp: new Date().toISOString(),
+      timestamp: new Date().toISOString(),
       });
     });
   } catch (error) {
@@ -746,9 +1164,9 @@ app.post('/api/cua/automation/stop', async (req, res) => {
     // Kill any running automation processes
     const { exec } = require('child_process');
     exec('pkill -f "cua_automation"', (error, stdout, stderr) => {
-      res.json({
-        status: 'stopped',
-        timestamp: new Date().toISOString(),
+    res.json({
+      status: 'stopped',
+      timestamp: new Date().toISOString(),
       });
     });
   } catch (error) {

@@ -92,6 +92,26 @@ export const campaignsApi = {
     }
     return response.json();
   },
+  
+  // Force a campaign fetch
+  forceFetch: async () => {
+    const response = await fetch(`${API_BASE_URL}/api/campaigns/fetch`, {
+      method: 'POST'
+    });
+    if (!response.ok) {
+      throw new Error('Failed to trigger campaign fetch');
+    }
+    return response.json();
+  },
+  
+  // Get last fetch time
+  getLastFetchTime: async () => {
+    const response = await fetch(`${API_BASE_URL}/api/campaigns/last-fetch`);
+    if (!response.ok) {
+      throw new Error('Failed to get last fetch time');
+    }
+    return response.json();
+  },
 
   getStats: async (dateParams?: DateRangeParams) => {
     const queryString = dateParams ? buildQueryString(dateParams) : ''
@@ -146,6 +166,71 @@ export const insightsApi = {
       throw new Error('Failed to fetch insight stats');
     }
     return response.json();
+  },
+  
+  // Get AI-generated insights from essays
+  getEssayInsights: async () => {
+    const response = await fetch(`${API_BASE_URL}/api/insights/essays`);
+    if (!response.ok) {
+      throw new Error('Failed to fetch essay insights');
+    }
+    return response.json();
+  },
+  
+  // Get AI-generated insights stats from essays
+  getEssayInsightStats: async () => {
+    const response = await fetch(`${API_BASE_URL}/api/insights/essays/stats`);
+    if (!response.ok) {
+      throw new Error('Failed to fetch essay insight stats');
+    }
+    return response.json();
+  },
+  
+  // Generate insights from essays based on type
+  generateInsightFromEssays: async (insightType: string, campaignData?: any, analyticsData?: any) => {
+    console.log(`Generating ${insightType} insights from essays`, { campaignData, analyticsData });
+    
+    try {
+      const response = await fetch(`${API_BASE_URL}/api/insights/generate`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          insightType,
+          campaignData,
+          analyticsData
+        }),
+      });
+      
+      if (!response.ok) {
+        let errorInfo;
+        try {
+          // Try to parse error as JSON
+          errorInfo = await response.json();
+          console.error(`Failed to generate insights:`, errorInfo);
+        } catch (e) {
+          // If not JSON, get as text
+          const errorText = await response.text();
+          console.error(`Failed to generate insights: ${errorText}`);
+          errorInfo = { message: errorText };
+        }
+        
+        const error = new Error(`Failed to generate insights: ${response.status}`);
+        // @ts-ignore - Add response to error object for more details
+        error.response = response;
+        // @ts-ignore - Add error info to error object
+        error.errorInfo = errorInfo;
+        throw error;
+      }
+      
+      const data = await response.json();
+      console.log(`Generated ${insightType} insights:`, data);
+      return data;
+    } catch (error) {
+      console.error('Error generating insights:', error);
+      throw error;
+    }
   },
 };
 

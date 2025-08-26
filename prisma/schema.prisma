@@ -183,6 +183,9 @@ model AIRecommendation {
   type        RecommendationType
   title       String
   description String
+  content     String?  // JSON content of the recommendation
+  metadata    Json?    // Additional metadata like category, source, etc.
+  confidence  Int?     @default(0) // Confidence score 0-100
   priority    Priority @default(MEDIUM)
   isApplied   Boolean  @default(false)
   campaignId  String?

@@ -1,4 +1,6 @@
 import React, { useState, useEffect } from 'react';
+import { cn } from "@/lib/utils";
+import type { UseMutationResult } from '@tanstack/react-query';
 import { Button } from '@/components/ui/button';
 import { StatCard } from '@/components/ui/stat-card';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
@@ -35,14 +37,15 @@ import {
   Pie,
   Cell
 } from 'recharts';
-import { useQuery } from '@tanstack/react-query';
-import { analyticsApi } from '@/lib/api';
+import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
+import { analyticsApi, campaignsApi } from '@/lib/api';
 import type { AnalyticsData, AnalyticsStats, TrafficSource } from '@/types/api';
 import { CUADashboard } from '../components/cua-dashboard';
 import { EmbeddedAutomation } from '../components/ui/embedded-automation';
 import { DateRangeTester } from '../components/ui/date-range-tester';
 
 const Analytics = () => {
+  const queryClient = useQueryClient();
   const [isCUAOpen, setIsCUAOpen] = useState(false);
   const [showAutomation, setShowAutomation] = useState(false);
   const [automationType, setAutomationType] = useState<'cua' | 'campaign-fetch'>('cua');
@@ -64,6 +67,24 @@ const Analytics = () => {
   const { data: analyticsData = [], isLoading: analyticsLoading, error: analyticsError } = useQuery<AnalyticsData[]>({
     queryKey: ['analytics', apiParams],
     queryFn: () => analyticsApi.getAnalytics(apiParams),
+  });
+
+  // Fetch campaign data and last fetch time
+  const { data: lastFetchTime, isLoading: lastFetchLoading } = useQuery({
+    queryKey: ['campaigns-last-fetch'],
+    queryFn: () => campaignsApi.getLastFetchTime(),
+    refetchInterval: 60000, // Refetch every minute
+  });
+
+  // Function to trigger manual campaign fetch
+  const { mutate: refreshCampaigns, isPending: isRefreshing } = useMutation({
+    mutationFn: () => campaignsApi.forceFetch(),
+    onSuccess: () => {
+      // Invalidate queries to refetch data
+      queryClient.invalidateQueries({ queryKey: ['analytics'] });
+      queryClient.invalidateQueries({ queryKey: ['campaigns'] });
+      queryClient.invalidateQueries({ queryKey: ['campaigns-last-fetch'] });
+    },
   });
 
   // Fetch analytics stats with comparison
@@ -129,69 +150,39 @@ const Analytics = () => {
           </p>
         </div>
         
-        {/* Date Range Picker */}
+        {/* Date Range Picker and Refresh */}
         <div className="flex flex-col lg:flex-row lg:items-center gap-4">
-          <DateRangePicker
-            value={customRange}
-            onChange={setCustomRange}
-            onPresetChange={setPreset}
-            currentPreset={preset}
-            comparisonEnabled={comparisonEnabled}
-            onComparisonToggle={setComparisonEnabled}
-            className="lg:w-auto"
-          />
+          <div className="flex items-center gap-2">
+            <DateRangePicker
+              value={customRange}
+              onChange={setCustomRange}
+              onPresetChange={setPreset}
+              currentPreset={preset}
+              comparisonEnabled={comparisonEnabled}
+              onComparisonToggle={setComparisonEnabled}
+              className="lg:w-auto"
+            />
+            <Button
+              variant="outline"
+              size="icon"
+              onClick={() => refreshCampaigns()}
+              disabled={isRefreshing}
+              className="relative"
+            >
+              <RefreshCw className={cn(
+                "h-4 w-4",
+                isRefreshing && "animate-spin"
+              )} />
+            </Button>
+          </div>
+          {lastFetchTime?.lastFetchTime && (
+            <div className="text-sm text-muted-foreground">
+              Last updated: {new Date(lastFetchTime.lastFetchTime).toLocaleString()}
+            </div>
+          )}
         </div>
       </div>
 
-      {/* Action Buttons */}
-      <div className="flex flex-wrap gap-2 justify-end">
-          <Button 
-            variant="outline" 
-            onClick={() => {
-              setAutomationType('campaign-fetch');
-              setShowAutomation(true);
-              setIsAutomationMinimized(false);
-            }}
-            className="flex items-center gap-1"
-          >
-            <RefreshCw className="w-4 h-4" />
-            Fetch Campaigns
-          </Button>
-          
-          <Dialog open={isCUAOpen} onOpenChange={setIsCUAOpen}>
-            <DialogTrigger asChild>
-              <Button className="bg-gradient-primary hover:opacity-90 glow">
-                <Zap className="w-4 h-4 mr-2" />
-                CUA Optimization
-              </Button>
-            </DialogTrigger>
-            <DialogContent className="max-w-6xl max-h-[90vh] overflow-y-auto">
-              <DialogHeader>
-                <DialogTitle className="flex items-center gap-2">
-                  <Terminal className="w-5 h-5" />
-                  CUA Dashboard - Command User Access Control
-                </DialogTitle>
-                <DialogDescription>
-                  Execute commands, manage user access, and monitor security audits for the Google Ads dashboard
-                </DialogDescription>
-              </DialogHeader>
-              <CUADashboard />
-            </DialogContent>
-          </Dialog>
-          
-          <Button 
-            variant="outline" 
-            onClick={() => {
-              setAutomationType('cua');
-              setShowAutomation(true);
-              setIsAutomationMinimized(false);
-            }}
-            className="flex items-center gap-1"
-          >
-            <Terminal className="w-4 h-4" />
-            Live Automation
-          </Button>
-        </div>
 
       {/* Stats Grid */}
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">

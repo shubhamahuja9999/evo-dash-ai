@@ -1,0 +1,489 @@
+I'm doing a free AMA with the folks from Business of Software this week (June 12). Come ask me hard questions about positioning, sales pitches, writing books, kayaking, half marathon training, Canadian cottage construction or whatever else you want to yak about.
+I'm breaking my LinkedIn hiatus to speak at this! B2B Positioning Jujitsu: Turn Competitor Strengths into Your Advantage. It's on April 28 - that's MONDAY. Join us!!!
+"Last chance for the 99 cent book sale!! Prices go back to normal tonight.
+P.S. People like a good book sale - both books are topping the charts this weekend!  👀
+P.P.S. The sale is worldwide on Amazon but sometimes the price change doesn't propagate out properly to smaller markets - sorry about that!"
+"The SURPRISE FEBRUARY BOOK SALE is on!! Both Obviously Awesome and Sales Pitch ebooks are only $0.99 on Amazon until Sunday. 
+
+
+Buy one for your teammates or your boss, or one for your dog, who is very intelligent and likes a good business book! 
+
+
+I haven't had a book sale in two years, so now's your chance. 
+
+
+I will throw some links in the comments."
+"New simplified Chinese translation of Obviously Awesome - hot off the press!
+
+
+(aside - little book announcement coming on Thursday - can you guess what it is?)"
+"The Positioning Podcast is BACK! This week, I'm yakking about how to handle competitors who lie and why we should see it as an opportunity to educate prospects so they can make better choices.
+
+
+Episode links in the comments."
+"I have wanted to write about value vs. objection handling for a while because it's a complicated positioning concept. 
+
+
+Often, we have capabilities that clients love and prospects ask about, but they don't win us any deals. We will clearly lose deals without them, but they are rarely the reason customers choose us. 
+These are things like:
+➡️ Great support
+➡️ A modular architecture that allows customers to start small and add functionality when they are ready
+➡️ A professional services team that can help companies do deployment and integration
+➡️ Training to help new users onboard rapidly
+➡️ Support for industry standards like SOC2 or HIPPAA
+➡️ Pre-built integrations with other systems
+
+
+It's important to tell the difference. True differentiated value needs to be core to our positioning. We will build our story and our pitch around it. Objections must be handled, but we don't need to put them at the center of our messaging, story, and sales pitch. We can address them when and where we need to. Sometimes, we need to do it early (because we won't make the shortlist otherwise), or we can do it later when other stakeholders raise them. 
+
+
+The exception to this is when an incumbent vendor has messed up so badly (like when a legacy provider becomes a buggy mess and offers incredibly incompetent support) that prospects will actively search for a vendor without that problem. But even then, you will often need other value to get a prospect to take the leap. There's a lot of nuance to this stuff, in my opinion, and we have to be careful that we understand the buyer's motivations. 
+
+
+Link to the full newsletter article in the comments."
+"The key to great marketing and sales is knowing what a customer already understands and what you need to teach them.
+
+
+If I am selling a deeply technical product to a deeply technical buyer I might assume they understand the value of everything my product does. The reality is that they likely understand the things that all your competitors do - the capabilities that are common for the category.
+
+
+The parts they don't yet understand are the things that makes your product uniquely valuable. Our job is to help a customer understand what those differences are and why they are important. We need to teach them why to pick us over the other options.
+
+
+There are a million capabilities your product needs to solve a customer's problem, but only a very few that will win you the deal. We need to teach buyers why our unique strengths matter for their business - we can't assume they already understand something that they can only get from us."
+"Most companies position in a way that forces prospects to do a LOT of work that they shouldn't have to do. 
+
+
+Too much positioning is purely focused on what a company does well - full stop. But B2B buyers are never operating in a vacuum - they are always making a comparison. They want to know how you stack up against what they are doing today and against what they could be doing. 
+
+
+Simply listing all the great things you do leaves the buyer to do all the real hard work - figuring out what makes you unique, figuring out whether your offering was designed for companies like them. 
+
+
+Great positioning takes care of this for prospects. It paints a clear picture of what you offer that prospects won't get with any other alternative AND why it matters for their business. 
+
+
+(Aside - here's a random selfie of me heading out on my bonkers Q1 of back-to-back positioning workshops - San Francisco X2, Phoenix, London, New York X3  and Austin - see you soon!)"
+"What do you do when a competitor says they do the same thing you do but aren't telling the whole truth? Should we let the dirty liars win?
+
+
+First - make sure the team doesn't believe your competitors when they are stretching the truth. You wouldn't believe the number of times I hear marketing teams complain, ""We can't talk about that because our competitors say that too!!!"" This is a cop-out. Do you think Salesforce would stop saying they were the number 1 CRM because other companies lied and said they were? Of course not. 
+
+
+Instead, you should see your competitor's lies as a massive opportunity for you to do the right thing for customers - because there is nothing that a prospect hates more than being lied to. 
+
+
+1️⃣ Keep your focus on the value (particularly when they can't deliver the expected value because of the way the feature was implemented) 
+
+
+For example, I worked with a company that delivered a platform to manage a complex business process. Their main competitor started to lie and say that they, too, delivered a ""platform"" when they had a set of completely separate tools. My company switched to emphasizing the value of a real platform - shared data across the parts lets managers analyze and improve the process and set up automation that cuts the time to complete the process in half. The lying competitor couldn't deliver on any of that, regardless of how much they threw the ""platform"" word around. 
+
+
+2️⃣ Teach customers the difference between the real truth and the stretched truth (and why it matters for their business).
+
+
+For example - Another company I worked with delivered data for a process in real-time, where totally accurate data was critical for the process. The competitor started to claim that they too, could deliver real-time data. It turned out that while it was technically possible, the integration effort required to make it work meant that no customer actually could afford to do it. My company started to teach customers to ask about the details of exactly how real-time data was supported in the product, and unsurprisingly, the competitor stopped talking about it in their marketing. 
+
+
+3️⃣ Bring the receipts - and teach your prospects to ask for them
+
+
+I worked with a company that was by far the largest vendor in the space. A smaller competitor started claiming that they were ""The number 1 provider!"" My company responded by getting very specific about the number of successful deployments they had and started gently pointing out in sales calls that some other vendors in the space were ""bad at math."" They also pointed to the number of case studies, reviews, analyst mentions, and other proof points proving that the competitor was lying about their market traction. The competitor quickly backed down from their claim. 
+
+
+The newsletter this week dives deep into this. Link to the full article in the comments."
+"Positioning Jujitsu - Positioning is as much about positioning your competitors as it is about carving out your own space in the market. In this week's newsletter, I'm talking about ""Positioning Jujitsu"" and how to turn your competitor's greatest strength into a weakness. 
+
+
+Most products have a strength in one market that can be perceived as a weakness in another. Some examples:
+
+
+✴️ The ""market leader"" has the advantage of being the low-risk choice and a product that appeals to a wide range of users and use cases. On the other hand, market-leading products often can't meet the specialized needs of specific niche markets and can be very slow to innovate. 
+
+
+✴️ ""Platforms"" have an advantage over point solutions by being easier to buy and adopt. They also generally provide value derived from sharing data across the piece parts of the platform. At the same time, platforms usually have an underdeveloped piece of the platform where a point tool can provide something better. Some larger buyers might prefer to buy point solutions to avoid the risk of vendor lock-in. A point tool can also often be quicker to implement and represent a lower-risk project for some buyers. 
+
+
+✴️ A free or very low-cost product has obvious value for a customer's budget and generally makes it easy for users to adopt without suffering through a drawn-out enterprise purchase process. At the same time, enterprise buyers might happily pay more for a product with better support and services. Higher-priced solutions can often meet the oversight requirements of managers and executives in a way that their more user-oriented low-cost peers do not. 
+
+
+Link to the full newsletter article in the comments."
+"I get asked a lot about how customer research fits into positioning work, so I decided to get Georgiana Laudi on the podcast to give us a deep dive into it. 
+
+
+I've had a lot of positive feedback on this episode - I think you are going to love it.  
+
+
+Here's what we cover:
+☑️ Why traditional marketing funnels are LAZY
+☑️ Why it's important to understand ""moments of value"" from the customer's point of view
+☑️ When you know you need customer journey research
+☑️ Why customer research in a zero-touch sales model is so critical
+☑️ How to use a Jobs to Be Done approach to understand the customer's milestones for success better
+☑️ What is ""Voice of Customer"" and how do we best use it
+☑️ What's the role of AI in customer research
+
+
+She also finishes up with a great customer story that I love. 
+Links to the episode in the comments."
+Weather reports this week read like bad B2B marketing - there's a BOMB CYCLONE with an ATMOSPHERIC RIVER!!! Folks are all like - So you're saying it's gonna rain? Maybe some wind?
+When you start a new book and the first line hits you like...
+"There are several different ways to kick off or frame a sales conversation. On the podcast this week, I'm running down the pros and cons of the most common ones:
+
+
+1️⃣  Starting with Discovery Questions - Discovery is important in a first substantive sales call with a qualified prospect. We need to do it early in the call, but starting there doesn't give us a chance to frame the conversation around our point of view on the market. It also leaves us open to following along with the customer's framing - which could easily have come from conversations with competitors. 
+
+
+2️⃣  Starting with ""the Change in the World"" - I think this can work in some cases, particularly where the only competitive alternative is the status quo. The downside is that this change applies to your competitors as much as it does to you and doesn't set up your differentiated value in any meaningful way. It also doesn't give us a smooth way to transition to discovery - leading many reps to lead with discovery and then awkwardly switch gears to ""the change.""
+
+
+3️⃣  Leading with ""The Problem"" - similar to leading with ""the change,"" ""the problem"" is often generic and solved just as well by your competitors. It isn't a terrible way to start, but it doesn't give us a way to set up our differentiated value. Starting with defining the problem also always felt weird to me - the customer deeply understands their problem, and they don't need us to teach them about it. They want our perspective on solutions to that problem, so why not just start there?
+
+
+4️⃣  Leading with Our Unique Insight into the Market - To me, this is a better way to frame up a sales conversation. We start with our perspective on the situation, or put another way - our unique understanding of the problem. You can think of this as the answer to the question - ""Why our product does things differently than the others."" This frames our unique value right from the beginning. It also serves as a great setup to lead into a discovery conversation.
+
+
+More on this and the link to the full episode in the comments."
+"One of the most common questions I get is, ""How do we position a product with no differentiation?"" I'm going deep on this in the newsletter this week. 
+
+
+In my positioning process we start by listing the true competitive alternatives (including the status quo), then we list the capabilities we have that that alternatives do not. Then we translate those capabilities into a set of value themes. This ""differentiated value"" is the answer to the question ""Why pick us over the alternative solutions?""
+
+
+When I hear ""we have no differentiation,"" one of two things is true. Either:
+1️⃣  There is truly no distinct value for customers or
+2️⃣  Customers see differentiated value in your offering that some folks on the team do not understand. 
+
+
+If we truly have no differentiation, then sales is a disaster. There is no reason to pick us so prospects do not. That is not a problem that positioning can solve - in B2B, we don't get to simply make up value. Buyers have to justify their choices to a buying team and saying ""I was just into the vibes man"" isn't likely to cut it. 
+
+
+That said, you would be surprised at how often I see the second option, where at least one person on the executive team does not see any value vs the competition, despite the fact that every single day, prospects choose their solution over the alternatives. When we get the entire team together, it turns out there is a LOT of differentiated value for us to build a story around. What’s going on? Why do some folks on the team see clear value while others do not? 
+
+
+I’ve seen this enough that I can point at a set of root causes:
+💠 Value Blindness – the business is winning deals, but parts of the org aren't really sure why
+💠 Product Illiteracy – the product has significant differentiated capabilities, but the value of those capabilities for customers isn’t clear to the marketing and sales teams
+💠 An inside-out view of competition – members of the team are attempting to differentiate against many alternatives customers never consider or miss a key alternative (often the status quo).
+💠 Loss obsession, Win ignorance – parts of the team are overly focused on lost deals (often a poor fit for the product in the first place) and under-exposed to won deals. 
+💠 Product Pessimism – the product team is overly focused on gaining feature parity with every alternative in the market and has become blind to the places where the product is ahead. 
+💠 Sloppy Segmentation – members of the team are trying to find differentiated value for an overly broad slice of the market, making it seem impossible.
+
+
+Notice the common theme? Parts of the organization understand the value and other parts do not. More on this and how to fix it in the newsletter this week (link in comments)."
+"When we are doing positioning work, we need to be customer-obsessed but competitor-aware (and never the other way around). 
+
+
+In B2B, your product is not chosen in a vacuum. Customers will compare you to what they are doing today (at a minimum) and also to a short list of direct competitors.  We need to understand how customers evaluate alternatives and why they choose us. Understanding competitors alone doesn't give us what we need to win deals. The key to winning is customer insight within a competitive context. 
+
+
+I was reminded today of the famous Avis positioning of ""We try harder,"" which focused on differentiating their customer service from Hertz (the market leader at the time). Marketing folk love that story but in the end, they both lost the market. Enterprise understood that service was important, but renters also cared about better car choices, and convenient locations. Today Enterprise is twice the size of Hertz and Avis combined. 
+
+
+Understand your competition, but obsess over customer value."
+"It's the first week of September, so naturally, you are thinking about the January sales kick-off meeting - right? 
+
+
+No? I get it. September is busy. So is October. But if you want to strengthen your positioning for 2025 and you haven't reworked it by December, don't be surprised if the new pitch you show at your SKO looks a lot like last year's pitch. You've got about 10 weeks to make a real change happen. 
+
+
+Many of the companies I work with don't think about adjusting their positioning until something big happens. Sometimes, the big thing is good (an acquisition, some big new hires, new funding), and sometimes, it's bad (a rough quarter, a painful set of lost deals, unplanned executive departures, a regulatory fine). We often think about adjusting positioning when the good stuff is happening, but having a look at it when it feels like the wheels are coming off the bus is just as important. When the chips are down, that's a very good time to make sure the team is aligned, the positioning is tight, and the company is ready to come back swinging. 
+
+
+This is the topic of today's newsletter - link in comment."
+"I'm happy to finally (FINALLY) release this episode with Tamara Grominsky. This one is for the Product Marketers! 
+
+
+In this episode we cover:
+✔ What makes a great product marketer
+✔ Why product marketers should know the product better than product managers
+✔ The differences between product and sales led go to market strategies 
+✔ Product Launches - why bigger isn't always better
+✔ Segmentation and Personas - these two things are super important and I love Tamara's perspective on how to get these right. 
+
+
+I'm happy to get this one out there and I appreciate Tamara doing this one twice after I had some technical issues with the first take! It was worth the effort!
+
+
+Episode and video links in the comments."
+"I'm doing a positioning session at SaaStr this year! Come out and ask me hard questions, please!! This will be my one and only SaaStr appearance, so don't miss it!! (I will drop the link in the comments)
+
+
+If you aren't going to be at SaaStr but live in the Bay Area, I also have a session coming up with Dan Olsen 's Lean Product meetup on September 12th. I am super excited to do this one live for the first time (virtual sessions are ok, but live is just so much better). 
+
+
+Links to both are in the comments - I can't wait to see you all live and in person!"
+"In tech companies, I often find different members of the exec team have very different opinions about basic components of positioning. 
+
+
+The leaders of Sales and Product often disagree on who the company competes with. The founder often disagrees with Product or Marketing about the unique value the product delivers for customers. Customer success will often disagree with the product team on what our true product strengths are. 
+
+
+The interesting thing is that nobody is wrong, and everyone is correct. Each group sees the customer in different situations and at different points in the purchase journey. Often, groups are talking to different types of customers in very different contexts. Things look a certain way in certain situations. 
+
+
+It's a bit like that old parable where a group of people with blindfolds on touch a different part of an elephant. The person touching the trunk says, ""It's a snake!"" The person touching the tail says, ""It's a rope!"" and the person on the leg says, ""It's a tree!"" We need to bring the parts together to understand the elephant.
+
+
+If we really want to understand what we've got, we need input from everyone. I think great positioning comes from bringing marketing, product, sales, customer success, and the founder together. We need everyone's input, and each group needs to understand what the other groups see."
+"I finally got Martina Lauchengco from Silicon Valley Product Group on the podcast to talk about all things Product Marketing. I enjoyed her book ""Loved,""  and it was great to finally sit down and have a conversation. Here's what we covered:
+
+
+* Observing customers in the field to deepen your knowledge about where you fit in the customer's context.
+* Win/loss analysis - when and why to do it. 
+* How companies can stay ahead of the curve by being responsive to customer needs.
+* How the rapid pace of technological change and AI is transforming go-to-market strategies.
+* Understanding how a product intersects with the market and identifying key activities to amplify its reach.
+* Product marketing’s intersection with lead generation strategy.
+* The crucial role that product marketers play in shaping go-to-market strategies.
+* Understanding the context and audience for messaging.
+* The dynamic nature of messaging in the early stages of a company.
+* Using storytelling frameworks in sales pitches.
+* Investor positioning and why it's different. 
+* Borrowing techniques from successful peers, even if they seem unconventional.
+* How product marketing is misunderstood in many companies.
+
+
+This was a big, broad, fun conversation with someone who has really been there and done that.  Links to the episode in the comments."
+"The new Japanese translation of Sales Pitch just landed on my shelf 😍 
+
+
+Fun fact - over 6,000 people have read my first book (on the left) in Japanese in the past year 🤯"
+Tech people dunking on Crowdstrike today are either brand new or unreasonably optimistic about their own service.
+"What's the difference between messaging and positioning? I get asked this a LOT so I decided to get one of my favorite thinkers on this topic - Emma Stratton - to come on the podcast and chat with me about it. I love her take on how to get rid of the jargon in your messaging while keeping the message ""punchy."" Also - she's got a new book coming in the fall that I'm super excited about. 
+
+
+Link to the episode in the comments.
+
+
+Aside - this is a slide from her talk at Turing Fest a couple of weeks ago 😂"
+I'm doing a livestream tomorrow, July 16th at 10AM PST, 1PM Eastern. Got any questions you would like us to cover? Let me know! Registration link in the comments - join us!
+"Here's a Friday afternoon treat for you in the form of one of my favorite podcasts ever - I've got Loren Padelford on the podcast talking about sales from the perspective of a very experienced sales leader. If you are a fan of spicy takes on enterprise selling, this is a great episode for you!
+We cover:
+🎙 Why the Salesforce predictable revenue model doesn't work the way it used to. 
+🎙 Why the context of your product, your market, and the demand for it matters when it comes to the sales model.
+🎙 When does it make sense to use SDR's and when does it not.
+🎙 How did this work in the early days of Shopify Plus, and how did it change over time?
+🎙 Why we aren't going to see a world without sales reps (yes, even if we are good at Product-Led Growth) anytime soon.
+🎙 Why a great sales rep is like a local tour guide (I love this bit)
+
+
+I don't know many folks out there who have taken a sales team from zero to absolutely massive the way Loren did at Shopify. This episode is very high signal-to-noise - you should check it out."
+Seeing my book on lists like this never gets old!
+"I am thinking about hosting a positioning training session and looking for some feedback. Here is what it would look like:
+1/ It would be in-person (I'm tired of virtual events), likely in Toronto. 
+2/ It would be two days. One day isn't enough time to get deep into it, and three days is a long time for folks to be out of the office (in my experience).
+3/ It would be for in-house folks, generally senior product marketers. Training for consultants would be VERY different. I might do consultant training at some point, but it's less interesting to me than training folks who are inside companies and grinding on the real work. 
+4/ The goal would be to go beyond what is covered in the books and explore more practical scenarios—what happens when the senior leaders don't agree, what happens when the product seems highly undifferentiated, what happens when sales are wildly out of alignment, what happens when you are tasked with driving positioning but have little authority to do so, etc. 
+5/ It would happen in the fall - likely October/November. Summer is too vacation-filled, and September is too busy. I would want to do this before (US) Thanksgiving. 
+6/ The group would be small-ish. There would probably be between 20 and 50 attendees max, depending on how I decide to teach things.
+
+
+Questions:
+1/ Does this sound interesting?
+2/ What would be the key things that would make this training valuable?
+3/ Any logistical things I should consider related to location, timing, group size, or attendee profile?"
+"It was an absolute TREAT to finally meet and hang out with Allan Dib (his book - The One Page Marketing Plan- is everywhere, and the new one, Lean Marketing, is about to be!). 
+
+
+We had a great chat about positioning, niching down, and how to not worry too much about your positioning in the very early stages.
+
+
+We also got into an interesting discussion toward the end about our respective businesses. It's my opinion that many service businesses are trying to develop too many tiny revenue streams where they could make a lot more money, focusing all of their energy on crushing the best one they have and not being distracted by the little trickle of cash coming from stuff like podcast or newsletter sponsorships, paid speaking engagements, etc. 
+
+
+Link to the full episode in the comments"
+I would like to talk to a handful of product marketing executives. I'm looking for current or recently current operators (I am serious - DO NOT reply with consultants!! I love consultants! I am one! But not for this). Bonus points if they are in larger organizations (>1000 people) and have been doing this stuff for a decade or two. Who should I talk to?
+"Positioning should not drive product strategy - it should work the other way around. The company has a vision for the future, there is a strategy that defines the steps the company is going to take to achieve the vision and there is positioning that defines how the company wins business in the market at every step in that strategy. 
+
+
+If let our positioning drive product strategy, we will run into two problems:
+1/ Our product strategy will always be rooted in the present or the past. Our positioning defines how we win in the market today. We can (and often should) build a roadmap that helps to strengthen the value we currently deliver. However, in tech, over the lifetime of a successful product, the value will shift into other places. For example - today you deliver Value X for customers but in 5 years you will have enough data to deliver Value Y. You cannot sell Y today, and looking at X in isolation doesn't give you a plan to get to Y. If positioning is driving you roadmap you are going to be orienting around value X forever. For some products, that is perfectly fine but for many (particularly in tech) this leave you open to being leap-frogged by competitors and new entrants. 
+
+
+2/ We are orienting our marketing and sales messages around future promises that we cannot deliver on today. I've seen companies get way out over their skis trying to orient their positioning around the vision of where they will be in the future only to discover that customers don't want to pay today's dollars for tomorrow's promises. Creating urgency requires you to build a strong case for why a customer needs to move on a deal right now - not a year from now. 
+
+
+I had a great conversation with Nacho Bassino on the 100 product strategies podcast about exactly this topic (and a handful of others!) this week. Check it out (links in comments)"
+"Yesterday I launched a new podcast about parking... just kidding! A mysterious glitch replaced my awesome new episode with Brent Adamson with a podcast about....parking? It's fixed now and let me tell you - you will want to listen because this one is a banger!
+
+
+I've been dying to get Brent on the podcast since forever. His work has had a big impact on me, and it was an absolute treat to go deep with him on a bunch of stuff, including:
+
+
+* The original Challenger Sale research and how they worked through the original positioning of the book to make sure there was a clear contrast between Challenger and traditional relationship selling (for better and worse). 
+
+
+*How the customer's context has changed in the past ten years - particularly for larger deals. 
+
+
+*Why it is so hard to get an enterprise deal done. As Brett says, ""How the Bleep does commerce even happen?"" and then, importantly, ""How much more commerce could happen?""
+
+
+*Why we can no longer win ""The smartness arms race"" by producing great content, and why ""sensemaking"" is the way forward. 
+
+
+*How companies need to put their insight into context for the customer in order to help them make better decisions. 
+
+
+If you are in B2B, you will want to listen to this one. Links are in the comments (zero parking talk this time, I promise!)."
+"An acquisition often results in a shift in positioning for both the newly acquired product and the acquiring company. Lately, I've worked with a number of companies on post-acquisition positioning. In the newsletter this week, I'm doing a deep dive into how you might think about your go-to-market strategy and the positioning shifts you might make after an acquisition. 
+
+
+Specifically, I'm covering five scenarios:
+- When the acquired product becomes a ""feature"" of a parent company product
+- When the acquired product is positioned as an up-sell or cross-sell to a parent company product
+- When the acquired product is positioned as standalone and equal to other products the company sells
+- When the product is positioned as part of a ""suite"" of products
+- When the product is positioned as part of a ""platform.""
+
+
+Behold some graphics I created to go with this article 🙂 
+Link to the full guide in the comments. Let me know what you think!"
+"I've been sitting on boards for years but I've never had any formal governance education - until now!
+This course was an eye-opener. I came out with a long list of things to bring back to the boards I sit on and a shifted perspective on the role of an independent board member on a private company board. 
+Thanks Canadian Venture Capital & Private Equity Association (CVCA) and the Institute of Corporate Directors for helping me get smarter on this stuff."
+"The idea that your company needs to ""start a movement"" seems too vendor-centric to me, particularly for B2B. 
+
+
+Businesses are struggling to make money. They want technology that can help them meet their goals. I don't believe prospects want to join ""the AI Accounting Revolution,"" -  they just want accounting software that helps them meet their goals (and like, doesn't suck).  
+
+
+I think sometimes marketers can get a bit of main character energy when it comes to this stuff. In B2B, our goals as vendors don't belong in the center of our positioning. The value we can deliver for our customers needs to be the core."
+"This might be my favorite podcast conversation of all time. I am very lucky to have Abhinav Asthana from Postman sit down for a podcast conversation. 
+I've used Postman's positioning as an example many times. Abhinav has a great gut feel for this stuff, and it was awesome to pick his brain. A few areas we covered:
+🎙 How Postman was originally positioned when the company first started
+🎙 How the positioning evolved over time. 
+🎙 The specific positioning challenges they faced as the product matured.
+🎙 Their concept of ""an API-first world"" and how that gets represented across their marketing and sales efforts.
+
+
+If you don't know Postman, trust me, your tech team does (Postman serves over 30 million developers across 500,000 companies and has a current valuation of $5.6 billion). 
+Links to the episode in the comments!"
+"One of my favorite quotes about positioning comes from Dolly Parton, who said, ""Find out what you are and do it on purpose.""
+
+
+In my mind, companies must deeply understand what they deliver for customers before they can ""do it on purpose."" Some marketers believe we can just skip to the 'do it on purpose' part and make up the 'what we are' out of thin air and marketing pixie sparkles. I think that attitude both underestimates how easy it is to get caught in a lie (when vendors claim something they can't do, competitors will quickly teach customers why that vendor cannot be trusted and use that lie as proof) and the great stuff that comes out of understanding what is already working for you in the market. 
+
+
+I was reminded of the Dolly quote last week when Beyoncé launched her album. Part of the campaign was this line - ""This ain’t a Country album. This is a “Beyoncé” album."" The point is that it isn’t simply the genre that makes this music interesting - it’s what the artist does with it. There is an expectation of what we will get from Beyoncé, regardless of the era or style she happens to be exploring at a given moment. 
+
+
+More noodling on this in the newsletter this week. Link in the comments."
+"I'm on the Women in Product Marketing podcast this week with Mary Sheehan - this was a super fun conversation. We talked about my winding road to consulting, and some things I think we should be able to do with AI to make our jobs easier in product marketing (and the stuff I think AI will never be great at). 
+Link in comments."
+"Episode 1, Season 2 of the Positioning show is now live! In this one I'm giving an overview of how things went with Season 1 and why I decided to do another season. 
+The rest of this episode talks about why Positioning doesn't make the jump from Marketing to sales. We cover:
+* Why sales teams often lack a deep understanding of positioning and its importance in the sales process.
+* What happens when marketing creates positioning without talking to the sales team.
+* The components of a sales pitch that marketers often overlook.
+* Why we need to consider common unspoken objections in a pitch. 
+* Why I don't believe we generally need multiple pitch decks, even if we are targeting multiple market segments and multiple personas
+
+
+Links in the comments. Let me know what you think!"
+"After weeks of false starts, technical challenges, and scheduling BS, Episode 1 of Season 2 of my Positioning podcast drops tomorrow (hopefully 😅). I'm super excited!!
+Subscribe wherever you subscribe to podcasts, or subscribe to the newsletter if that's your jam. I will post some links in the comments."
+"I'm yakking with Gary Stockton from Experian about crafting the perfect sales pitch on their Small Business Matters podcast. We are covering:
+ 
+ -  Where the idea for my my book ""Sales Pitch"" came from
+ -  Components of a good sales pitch
+ -  Common mistakes in sales pitch development
+ -  Helping customers to buy
+ -  Decision making in B2B purchasing
+ -  Testing the pitch
+
+
+Come for the sales pitch wisdom, stay for Gary's super-relaxing smooth asmr voice that is guaranteed to make you feel great.  
+Link in the comments -"
+"Consumer products rarely shift positioning, where positioning shifts are expected and normal for B2B products. As a result, some of the key concepts related to positioning consumer products are completely irrelevant for B2B products.
+
+
+In this week's newsletter, I'm going deep into why B2B tech products are different and what you need to do once you understand that. 
+
+
+And I'm talking about why positioning Juicy Fruit gum isn't the same as positioning an omnichannel platform for retailers 🍋   
+
+
+At a high level: 
+
+
+1️⃣ . We need to expect our positioning to change over time and have processes for reviewing and adjusting it.
+ - A structured process is needed to do positioning because you will have to do it more than once. I use my process, but any process you believe works is 1000 times better than no process. 
+
+
+2️⃣  We need regularly scheduled positioning check-ins—When I was working in-house, we would have a positioning check every six months and would also call an emergency check if something big happened (e.g., a new competitor in the space, an acquisition, a new big product release, etc.). You might want to do it more or less than that, but you will need to look at it regularly or you risk being reactive vs proactive about your positioning. 
+
+
+3️⃣  We need a process for how downstream changes will happen when there is a positioning change - This will include updating the sales pitch and messaging and any associated work to make those changes. 
+
+
+Come for the positioning wisdom. Stay for the old-school chewing gum ads. Link in the comments."
+"Marketers often worry the company is overly optimistic about its ability to win in the market. Interestingly, I've seen a pattern of the opposite - and it is positioning poison.
+
+
+Don't get me wrong - I've seen some companies that have been strong market leaders in the past be blind to competitors that have surpassed them - but I'm surprised how often I see the exact opposite. These are growing companies with tens of millions in revenue (sometimes hundreds) with teams that are so down on their own product that it's hard to get them to admit there is any situation where they could win business. Yet they win business every day! 
+
+
+I suspect there are a set of root causes:
+
+
+1️⃣  An overly-broad definition of an ideal prospect - this leaves the team feeling that every lost deal is proof that the product sucks, rather than our failure to disqualify obviously bad-fit prospects early in the sales cycle.
+
+
+2️⃣  Treating every company that looks like us as a ""competitor"" - we can all Google a fantasy competitive list, but it is impossible to differentiate against a list that long. Thankfully, we don't have to. For the purposes of positioning, we only need to worry about what a prospect considers as an alternative. Sales know this list - we should believe them when they tell us.
+
+
+3️⃣  Nobody listens to sales - hey I get it - sales has a reputation for pushing the product team to build features that wouldn't really close ""that one big deal we lost,"" and marketing is also sick of sales complaining about lead quality. But nobody in the company spends as much time with customers as sales. We need to develop our skills for pulling information from the sales team. Customer research might get us some of the answers but it can't be our only source of customer knowledge.
+
+
+4️⃣  The product team sees themselves as problem identifiers and not value architects - I listened to Lenny's conversation with Marty Cagan this week and wondered if the root cause of product pessimism relates to his idea of the product team being a ""feature factory"" rather than a true product team. I have no idea but I do know that these companies lack a clear point of view on the market and a vision that is helping the team understand where they win today and in the future. 
+
+
+I'm going deep on this in the newsletter this week. Link in the comments."
+Hello? Do you have marking tactics? I only want SNEAKY ones. No? How about dirty little secrets - got any of those? No? Too bad, not interested!!
+"The internet is full of hateful jealous trolls - but also full of kind, thoughtful folks that take a moment to tell you you're doing a great job. The former makes you wake up and wonder why you even bother. The latter is like gas on the fire for folks like me who are just trying to put some useful stuff out there. 
+
+
+I was on The Knowledge Project this week and I think Shane does a great job of setting a tone for that community. Shane's got a vibe - he's calm, professional, and super respectful of his guests. That vibe gets reflected back from his audience - look at this joyful positive stuff!! On YouTube of all places!
+
+
+Anyway, this is a reminder to myself and anybody reading on a Saturday morning to work at putting more joyful positive energy out in the world."
+"I had the pleasure of sitting down with Shane Parrish from Farnam Street on the legendary Knowledge Project podcast this week. We had a wide-ranging discussion, including:
+
+
+🎤 B2B vs. B2C positioning
+🎤 When re-positioning a product failed
+🎤 How to identify customer's pain points
+🎤 How technology has changed positioning
+🎤 How to evaluate product positioning
+🎤 Who's in charge of positioning at a company?
+🎤 Should a company have a point of view on the market?
+🎤 Dealing with gatekeepers in B2B marketing
+🎤 Mistakes people make with positioning
+🎤 What schools get wrong about marketing
+
+
+This was a lot of fun to do, and it's cool to do one of these face-to-face for a change. Link in the comments!"
+"Most sales pitches aren't weak due to a lack of expertise or product understanding - they're dying of neglect. 
+
+
+I've seen a LOT of sales pitches, and here's the pattern I see:
+
+
+1/ The basics of the pitch were created years ago, and it's been tinkered with hundreds of times until it has become a Frankenstein monster of little pieces mashed together. There's no consistent positioning, no compelling story thread that holds it together. 
+
+
+2/ The structure and flow of the pitch are an afterthought. A product walkthrough demo might form the backbone of the pitch and often even that doesn't have a structure beyond - hey let me show you all the things. 
+
+
+3/ Nobody really ""owns"" making the pitch great, so nobody has the time and inclination to blow it up and start from scratch. When it needs updating, it bounces around like a hot potato until someone adds a little piece, and then...we get point number 1.
+
+
+We are left with a first-call pitch deck that isn't doing the positioning or the story justice for prospects. An experienced sales rep might not care too much - they've done enough deals to know what works and what doesn't - but for everyone else? We could do a whole lot better."
+"I am late to the party here, but I FINALLY got my hands on The Best of Lenny's Newsletter book! This is a dense package of product management goodness. 
+I love that I have a little bit in here. I know this is 99.9% Lenny Rachitsky and 0.1% me - but that won't stop me from calling this book 2.1 for me. It even looks like my other books! 
+
+
+I hear there are only a small number of these left - order quickly if you want one - I will drop a link in the comments."
+If you are an expert and you care about your work, you have to be very careful how you pick companies to work with. Some companies see a problem and desperately want help to fix it. These kinds of companies get great work out of experts. Some companies see a problem and want an expert to come in and tell them there is no problem. An expert can make money here but no good work comes out of these engagements.
