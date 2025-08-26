@@ -20,14 +20,13 @@ export function CUAInterface({
   onClose,
   onMinimize,
   isMinimized,
-  title = 'Computer-Using Agent'
+  title = 'Agentic CUA'
 }: CUAInterfaceProps) {
   const [status, setStatus] = useState<'idle' | 'running' | 'completed' | 'error'>('idle');
   const [output, setOutput] = useState<string[]>([]);
   const [isFullscreen, setIsFullscreen] = useState(false);
   const [prompt, setPrompt] = useState('');
   const [isProcessing, setIsProcessing] = useState(false);
-  const [currentUrl, setCurrentUrl] = useState('');
   const [previousResponseId, setPreviousResponseId] = useState<string | null>(null);
   const [lastCallId, setLastCallId] = useState<string | null>(null);
   const [pendingSafetyChecks, setPendingSafetyChecks] = useState<any[]>([]);
@@ -49,7 +48,7 @@ export function CUAInterface({
     };
   }, []);
   
-  // Function to start the CUA process
+  // Function to start the CUA process - fully agentic mode
   const startCUA = async () => {
     if (!prompt.trim()) {
       setOutput(prev => [...prev, '⚠️ Please enter a prompt to start the CUA.']);
@@ -57,7 +56,8 @@ export function CUAInterface({
     }
     
     setStatus('running');
-    setOutput(prev => [...prev, '🚀 Starting Computer-Using Agent...']);
+    setOutput(prev => [...prev, '🚀 Starting Computer-Using Agent in agentic mode...']);
+    setOutput(prev => [...prev, `💬 Processing your request: "${prompt}"`]);
     setOutput(prev => [...prev, '👤 Note: You will need to login to your Google account when prompted']);
     setOutput(prev => [...prev, '🔒 Complete any 2FA verification if required']);
     setOutput(prev => [...prev, '⏳ The automation will continue after login is complete']);
@@ -226,22 +226,7 @@ export function CUAInterface({
     setOutput([]);
   };
   
-  // Function to navigate to a URL
-  const navigateToUrl = async () => {
-    if (!currentUrl) {
-      setOutput(prev => [...prev, '⚠️ Please enter a URL.']);
-      return;
-    }
-    
-    try {
-      setOutput(prev => [...prev, `🌐 Navigating to ${currentUrl}...`]);
-      await navigateTo(currentUrl);
-      setOutput(prev => [...prev, `✅ Navigated to ${currentUrl}.`]);
-    } catch (error) {
-      console.error('Navigation error:', error);
-      setOutput(prev => [...prev, `❌ Error navigating to ${currentUrl}: ${error.message}`]);
-    }
-  };
+  // We don't need explicit navigation in agentic mode
   
   if (!isOpen) return null;
   
@@ -280,7 +265,7 @@ export function CUAInterface({
             {title}
           </CardTitle>
           <CardDescription>
-            OpenAI Computer-Using Agent
+            Free-form prompt-based automation
           </CardDescription>
         </div>
         <div className="flex items-center gap-1">
@@ -312,33 +297,17 @@ export function CUAInterface({
       </CardHeader>
       
       <CardContent className="p-4 pt-0 flex flex-col gap-2">
-        <div className="flex items-center gap-2">
-          <Textarea 
-            placeholder="Enter URL to navigate to..."
-            value={currentUrl}
-            onChange={(e) => setCurrentUrl(e.target.value)}
-            className="h-10 min-h-0 py-2"
-          />
-          <Button 
-            onClick={navigateToUrl}
-            disabled={isProcessing || !currentUrl}
-            className="shrink-0"
-          >
-            Go
-          </Button>
-        </div>
-        
         <div 
           ref={outputRef}
           className="bg-black text-green-400 font-mono text-xs p-3 rounded overflow-auto"
-          style={{ height: isFullscreen ? 'calc(100vh - 280px)' : '200px' }}
+          style={{ height: isFullscreen ? 'calc(100vh - 220px)' : '250px' }}
         >
           {output.length === 0 ? (
             <div className="text-gray-500">
-              <p className="mb-2 italic">No output yet. Start the Computer-Using Agent to see results here.</p>
+              <p className="mb-2 italic">No output yet. Enter a prompt and click Start to begin.</p>
               <p className="mb-1">⚠️ Important Notes:</p>
               <ul className="list-disc pl-4">
-                <li className="mb-1">The agent opens a fresh Chrome instance that requires login</li>
+                <li className="mb-1">The agent will respond to any prompt you provide</li>
                 <li className="mb-1">You will need to login to Google Ads when prompted</li>
                 <li className="mb-1">Complete any 2FA verification if required</li>
                 <li className="mb-1">The automation will continue after login is complete</li>
@@ -354,103 +323,36 @@ export function CUAInterface({
         </div>
         
         <Textarea 
-          placeholder="Enter instructions for the Computer-Using Agent..."
+          placeholder="Enter any prompt for the Computer-Using Agent..."
           value={prompt}
           onChange={(e) => setPrompt(e.target.value)}
           disabled={isProcessing}
-          className="h-16 min-h-0"
+          className="h-20 min-h-0"
         />
       </CardContent>
       
-      {/* Quick Test Buttons */}
-      <div className="px-4 pb-2 border-t border-gray-200 dark:border-gray-800 mt-2 pt-3">
-        <p className="text-sm font-medium mb-3 text-primary">Quick Tests:</p>
-        <div className="grid grid-cols-2 gap-2 max-h-[120px] overflow-y-auto pr-1">
-          <Button 
-            variant="outline" 
-            size="sm"
-            className="justify-start text-left h-auto py-2"
-            onClick={() => {
-              setPrompt("Login to Google Ads and wait for the dashboard to load");
-              setCurrentUrl("https://ads.google.com");
-            }}
-            disabled={isProcessing}
-          >
-            Login to Google Ads
-          </Button>
-          <Button 
-            variant="outline" 
-            size="sm"
-            className="justify-start text-left h-auto py-2"
-            onClick={() => {
-              setPrompt("Navigate to Google Ads dashboard and then to the User Access section");
-              setCurrentUrl("https://ads.google.com");
-            }}
-            disabled={isProcessing}
-          >
-            Test Google Ads
-          </Button>
-          <Button 
-            variant="outline" 
-            size="sm"
-            className="justify-start text-left h-auto py-2"
-            onClick={() => {
-              setPrompt("Navigate to Google Ads account settings and access management");
-              setCurrentUrl("https://ads.google.com/aw/settings/account/access");
-            }}
-            disabled={isProcessing}
-          >
-            Test Account Access
-          </Button>
-          <Button 
-            variant="outline" 
-            size="sm"
-            className="justify-start text-left h-auto py-2"
-            onClick={() => {
-              setPrompt("Navigate to Google and search for 'digital marketing automation'");
-              setCurrentUrl("https://www.google.com");
-            }}
-            disabled={isProcessing}
-          >
-            Test Google Search
-          </Button>
-          <Button 
-            variant="outline" 
-            size="sm"
-            className="justify-start text-left h-auto py-2"
-            onClick={() => {
-              setPrompt("Check if the OpenAI API key is working correctly");
-            }}
-            disabled={isProcessing}
-          >
-            Test API Key
-          </Button>
-        </div>
-      </div>
+      {/* No quick test buttons in agentic mode */}
       
       <CardFooter className="p-4 pt-0 flex justify-between">
         <div className="flex gap-2">
-          {status === 'running' ? (
-            <Button 
-              variant="destructive" 
-              onClick={stopCUA}
-              disabled={isProcessing}
-              className="gap-1"
-            >
-              <Pause className="h-4 w-4" />
-              Stop
-            </Button>
-          ) : (
-            <Button 
-              variant="default" 
-              onClick={startCUA}
-              disabled={isProcessing || !prompt.trim()}
-              className="gap-1"
-            >
-              <Play className="h-4 w-4" />
-              Start
-            </Button>
-          )}
+          <Button 
+            variant={status === 'running' ? "destructive" : "default"}
+            onClick={status === 'running' ? stopCUA : startCUA}
+            disabled={isProcessing || (!prompt.trim() && status !== 'running')}
+            className="gap-1 w-32"
+          >
+            {status === 'running' ? (
+              <>
+                <Pause className="h-4 w-4" />
+                Stop
+              </>
+            ) : (
+              <>
+                <Play className="h-4 w-4" />
+                Start
+              </>
+            )}
+          </Button>
           
           {pendingSafetyChecks.length > 0 && (
             <Button 
@@ -458,21 +360,19 @@ export function CUAInterface({
               onClick={acknowledgeSafetyChecks}
               className="gap-1"
             >
-              Acknowledge Safety Checks
+              Acknowledge Safety
             </Button>
           )}
         </div>
         
-        <div className="flex gap-2">
-          <Button 
-            variant="outline" 
-            onClick={clearOutput}
-            disabled={output.length === 0 || isProcessing}
-            className="gap-1"
-          >
-            Clear
-          </Button>
-        </div>
+        <Button 
+          variant="ghost" 
+          onClick={clearOutput}
+          disabled={output.length === 0 || isProcessing}
+          className="gap-1"
+        >
+          Clear
+        </Button>
       </CardFooter>
     </Card>
   );

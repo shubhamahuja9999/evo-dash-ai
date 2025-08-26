@@ -37,8 +37,8 @@ class GoogleAdsCUAAutomation:
         try:
             openai_api_key = os.getenv('OPENAI_API_KEY')
             if openai_api_key:
-                openai.api_key = openai_api_key
-                self.openai_client = openai
+                self.openai_client = openai.OpenAI(api_key=openai_api_key)
+                self.logger.info("✅ OpenAI client configured")
             return True
         except Exception as e:
             self.logger.error(f"Error loading configuration: {e}")
@@ -104,6 +104,27 @@ class GoogleAdsCUAAutomation:
             chrome_options.add_experimental_option("excludeSwitches", ["enable-automation"])
             chrome_options.add_experimental_option('useAutomationExtension', False)
             
+            # Additional options to prevent timeouts and improve stability
+            chrome_options.add_argument("--disable-gpu")
+            chrome_options.add_argument("--disable-web-security")
+            chrome_options.add_argument("--allow-running-insecure-content")
+            chrome_options.add_argument("--disable-features=TranslateUI")
+            chrome_options.add_argument("--disable-iframes-sandbox-mode")
+            chrome_options.add_argument("--remote-debugging-port=9222")
+            chrome_options.add_argument("--disable-backgrounding-occluded-windows")
+            chrome_options.add_argument("--disable-renderer-backgrounding")
+            chrome_options.add_argument("--disable-extensions")
+            chrome_options.add_argument("--disable-plugins")
+            chrome_options.add_argument("--disable-background-timer-throttling")
+            chrome_options.add_argument("--disable-backgrounding-occluded-windows")
+            chrome_options.add_argument("--disable-renderer-backgrounding")
+            chrome_options.add_argument("--disable-features=TranslateUI,BlinkGenPropertyTrees")
+            chrome_options.add_argument("--no-first-run")
+            chrome_options.add_argument("--no-default-browser-check")
+            chrome_options.add_argument("--disable-logging")
+            chrome_options.add_argument("--disable-gpu-logging")
+            chrome_options.add_argument("--silent")
+            
             # Make cursor visible and add visual indicators
             chrome_options.add_argument("--disable-extensions-except")
             chrome_options.add_argument("--disable-plugins-discovery")
@@ -122,10 +143,13 @@ class GoogleAdsCUAAutomation:
             self.driver.set_window_size(width, height)
             self.driver.set_window_position(0, 0)  # Position at top-left for visibility
             
-            # Set timeouts
-            timeout = int(os.getenv('BROWSER_TIMEOUT', 10))
+            # Set timeouts - increase for better stability
+            timeout = int(os.getenv('BROWSER_TIMEOUT', 30))
             self.driver.set_page_load_timeout(timeout)
-            self.driver.implicitly_wait(5)
+            self.driver.implicitly_wait(10)
+            
+            # Set script timeout for long-running operations
+            self.driver.set_script_timeout(30)
             
             # Add visual cursor indicator
             self.add_cursor_indicator()
@@ -406,6 +430,7 @@ class GoogleAdsCUAAutomation:
             self.driver.get("https://ads.google.com")
             
             try:
+                # Wait for login with better error handling
                 WebDriverWait(self.driver, 300).until(
                     lambda driver: any([
                         "ads.google.com/aw" in driver.current_url,
@@ -414,9 +439,26 @@ class GoogleAdsCUAAutomation:
                         "ads.google.com/my-account" in driver.current_url
                     ])
                 )
+                self.logger.info("✅ Successfully logged into Google Ads")
                 return True
             except TimeoutException:
-                self.logger.error("Login timeout - please try again")
+                self.logger.error("❌ Login timeout - please try again")
+                return False
+            except Exception as e:
+                self.logger.error(f"❌ Login error: {e}")
+                # Try to check if we're actually logged in anyway
+                try:
+                    current_url = self.driver.current_url
+                    if any(domain in current_url for domain in ["ads.google.com", "google.com"]):
+                        self.logger.info("🔄 Detected Google domain, checking login status...")
+                        # Add a small delay and recheck
+                        time.sleep(5)
+                        current_url = self.driver.current_url
+                        if "ads.google.com" in current_url:
+                            self.logger.info("✅ Login appears successful despite error")
+                            return True
+                except:
+                    pass
                 return False
             
         except Exception as e:

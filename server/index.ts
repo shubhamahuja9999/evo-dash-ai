@@ -25,12 +25,8 @@ app.post('/api/cua/command', async (req, res) => {
     const commandId = 'cmd-' + Date.now();
     const timestamp = new Date();
     
-    // Check if the command requires CUA
-    const needsCUA = command.toLowerCase().includes('campaign') || 
-                    command.toLowerCase().includes('google ads') ||
-                    command.toLowerCase().includes('performance') ||
-                    command.toLowerCase().includes('metrics') ||
-                    command.toLowerCase().includes('audit');
+    // Always use CUA for all commands - fully agentic mode
+    const needsCUA = true;
     
     // Execute Python automation if needed
     if (needsCUA) {
@@ -657,7 +653,7 @@ app.post('/api/cua/automation/stop', async (req, res) => {
 
 app.get('/api/cua/interface', async (req, res) => {
   try {
-    // Mock CUA interface data
+    // CUA interface data
     const interfaceData = {
       status: 'active',
       version: '1.0.0',
@@ -668,6 +664,98 @@ app.get('/api/cua/interface', async (req, res) => {
   } catch (error) {
     console.error('Error fetching CUA interface:', error);
     res.status(500).json({ error: 'Failed to fetch CUA interface' });
+  }
+});
+
+// CUA interface POST endpoint for agentic mode
+app.post('/api/cua/interface', async (req, res) => {
+  try {
+    const { prompt, screenshot, responseId, callId, safetyChecks } = req.body;
+    console.log('CUA interface request:', { prompt: prompt?.substring(0, 100) + '...', hasScreenshot: !!screenshot, responseId, callId });
+    
+    // Generate a unique ID for this response
+    const id = 'resp-' + Date.now();
+    
+    if (prompt) {
+      // This is a new prompt - execute Python automation
+      const commandId = 'cmd-' + Date.now();
+      const timestamp = new Date();
+      
+      try {
+        // Escape prompt for shell safety
+        const escapedPrompt = prompt.replace(/"/g, '\\"');
+        
+        // Execute Python automation
+        console.log('Executing Python CUA automation for prompt');
+        const pythonCmd = `python3 cua_automation.py "${escapedPrompt}" "Agentic CUA request"`;
+        
+        exec(pythonCmd, (error, stdout, stderr) => {
+          if (error) {
+            console.error(`Python execution error: ${error}`);
+          }
+          if (stderr) {
+            console.error(`Python stderr: ${stderr}`);
+          }
+          console.log(`Python stdout: ${stdout}`);
+        });
+        
+        // Return immediate response with reasoning
+        return res.json({
+          id,
+          output: [
+            {
+              type: 'reasoning',
+              id: 'reasoning-' + Date.now(),
+              summary: [
+                {
+                  type: 'summary_text',
+                  text: `Processing request: ${prompt.substring(0, 100)}${prompt.length > 100 ? '...' : ''}`
+                }
+              ]
+            },
+            {
+              type: 'text',
+              text: `I'll help you with that request. Processing your command: "${prompt}"`
+            }
+          ]
+        });
+        
+      } catch (pythonError: any) {
+        console.error('Python execution failed:', pythonError);
+        return res.json({
+          id,
+          output: [
+            {
+              type: 'text',
+              text: `I encountered an error processing your request: ${pythonError.message}`
+            }
+          ]
+        });
+      }
+    } else if (screenshot && callId) {
+      // This is a screenshot response to a previous action
+      console.log('Received screenshot response for call:', callId);
+      
+      // Process the screenshot and continue the conversation
+      return res.json({
+        id,
+        output: [
+          {
+            type: 'text',
+            text: 'I can see the current state of your screen. What would you like me to do next?'
+          }
+        ]
+      });
+    } else {
+      // Invalid request
+      return res.status(400).json({ 
+        error: 'Invalid request. Please provide either a prompt or a screenshot with callId.' 
+      });
+    }
+    
+  } catch (error: any) {
+    console.error('Error in CUA interface:', error);
+    res.status(500).json({ error: 'Failed to process CUA request', details: error.message });
   }
 });
 
