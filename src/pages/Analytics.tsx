@@ -4,6 +4,8 @@ import { StatCard } from '@/components/ui/stat-card';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
+import { DateRangePicker } from '@/components/ui/date-range-picker';
+import { useDateRange } from '@/hooks/use-date-range';
 import { 
   BarChart3, 
   Users, 
@@ -14,7 +16,10 @@ import {
   Terminal,
   Shield,
   Activity,
-  RefreshCw
+  RefreshCw,
+  TrendingDown,
+  ArrowUp,
+  ArrowDown
 } from 'lucide-react';
 import {
   LineChart,
@@ -35,6 +40,7 @@ import { analyticsApi } from '@/lib/api';
 import type { AnalyticsData, AnalyticsStats, TrafficSource } from '@/types/api';
 import { CUADashboard } from '../components/cua-dashboard';
 import { EmbeddedAutomation } from '../components/ui/embedded-automation';
+import { DateRangeTester } from '../components/ui/date-range-tester';
 
 const Analytics = () => {
   const [isCUAOpen, setIsCUAOpen] = useState(false);
@@ -42,17 +48,35 @@ const Analytics = () => {
   const [automationType, setAutomationType] = useState<'cua' | 'campaign-fetch'>('cua');
   const [isAutomationMinimized, setIsAutomationMinimized] = useState(false);
 
-  // Fetch analytics data
+  // Date range management
+  const {
+    preset,
+    customRange,
+    comparisonEnabled,
+    apiParams,
+    previousApiParams,
+    setPreset,
+    setCustomRange,
+    setComparisonEnabled,
+  } = useDateRange('last_7_days');
+
+  // Fetch analytics data with date filtering
   const { data: analyticsData = [], isLoading: analyticsLoading, error: analyticsError } = useQuery<AnalyticsData[]>({
-    queryKey: ['analytics'],
-    queryFn: analyticsApi.getAnalytics,
+    queryKey: ['analytics', apiParams],
+    queryFn: () => analyticsApi.getAnalytics(apiParams),
   });
 
-  // Fetch analytics stats
-  const { data: analyticsStats, isLoading: statsLoading } = useQuery<AnalyticsStats>({
-    queryKey: ['analytics-stats'],
-    queryFn: analyticsApi.getStats,
+  // Fetch analytics stats with comparison
+  const { data: statsWithComparison, isLoading: statsLoading } = useQuery({
+    queryKey: ['analytics-stats', apiParams, previousApiParams, comparisonEnabled],
+    queryFn: () => comparisonEnabled && previousApiParams 
+      ? analyticsApi.getStatsWithComparison(apiParams, previousApiParams)
+      : analyticsApi.getStats(apiParams).then(current => ({ current, previous: null, comparison: null })),
   });
+
+  const analyticsStats = statsWithComparison?.current;
+  const previousStats = statsWithComparison?.previous;
+  const comparison = statsWithComparison?.comparison;
 
   // Fetch traffic sources
   const { data: trafficSources = [], isLoading: trafficLoading } = useQuery<TrafficSource[]>({
@@ -87,17 +111,39 @@ const Analytics = () => {
       </div>
     );
   }
+  // Helper function to format comparison as string
+  const formatComparison = (value: number) => {
+    const isPositive = value >= 0;
+    const sign = isPositive ? '+' : '-';
+    return `${sign}${Math.abs(value).toFixed(1)}% vs previous period`;
+  };
+
   return (
     <div className="space-y-6">
       {/* Header */}
-      <div className="flex items-center justify-between">
+      <div className="flex flex-col lg:flex-row lg:items-center lg:justify-between gap-4">
         <div>
           <h1 className="text-3xl font-bold">AI Analytics</h1>
           <p className="text-muted-foreground">
             Advanced insights powered by machine learning
           </p>
         </div>
-        <div className="flex gap-2">
+        
+        {/* Date Range Picker */}
+        <div className="flex flex-col lg:flex-row lg:items-center gap-4">
+          <DateRangePicker
+            value={customRange}
+            onChange={setCustomRange}
+            onPresetChange={setPreset}
+            comparisonEnabled={comparisonEnabled}
+            onComparisonToggle={setComparisonEnabled}
+            className="lg:w-auto"
+          />
+        </div>
+      </div>
+
+      {/* Action Buttons */}
+      <div className="flex flex-wrap gap-2 justify-end">
           <Button 
             variant="outline" 
             onClick={() => {
@@ -145,29 +191,46 @@ const Analytics = () => {
             Live Automation
           </Button>
         </div>
-      </div>
 
       {/* Stats Grid */}
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
         <StatCard
           title="Total Users"
           value={analyticsStats?.totalUsers || "0"}
-          change="+12.5% from last month"
-          trend="up"
+          change={comparisonEnabled && comparison?.totalUsers 
+            ? formatComparison(comparison.totalUsers) 
+            : "+12.5% from last month"
+          }
+          trend={comparisonEnabled && comparison?.totalUsers 
+            ? (comparison.totalUsers >= 0 ? "up" : "down")
+            : "up"
+          }
           icon={Users}
         />
         <StatCard
           title="Revenue"
-          value={analyticsStats?.revenue || "$0"}
-          change="+8.2% from last month"
-          trend="up"
+          value={analyticsStats?.revenue || "₹0"}
+          change={comparisonEnabled && comparison?.revenue 
+            ? formatComparison(comparison.revenue)
+            : "+8.2% from last month"
+          }
+          trend={comparisonEnabled && comparison?.revenue 
+            ? (comparison.revenue >= 0 ? "up" : "down")
+            : "up"
+          }
           icon={DollarSign}
         />
         <StatCard
           title="Conversion Rate"
           value={analyticsStats?.conversionRate || "0%"}
-          change="+0.8% from last month"
-          trend="up"
+          change={comparisonEnabled && comparison?.conversionRate 
+            ? formatComparison(comparison.conversionRate)
+            : "+0.8% from last month"
+          }
+          trend={comparisonEnabled && comparison?.conversionRate 
+            ? (comparison.conversionRate >= 0 ? "up" : "down")
+            : "up"
+          }
           icon={TrendingUp}
         />
         <StatCard
@@ -322,6 +385,10 @@ const Analytics = () => {
           </CardContent>
         </Card>
       </div>
+
+      {/* API Tester for Date Ranges */}
+      <DateRangeTester />
+
       {/* Embedded Automation Window */}
       <EmbeddedAutomation
         isOpen={showAutomation}

@@ -2,22 +2,75 @@
 
 const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || 'http://localhost:3001';
 
+export interface DateRangeParams {
+  startDate?: string
+  endDate?: string
+  dateRange?: string
+}
+
+// Helper function to calculate percentage change
+const calculatePercentageChange = (current: number, previous: number): number => {
+  if (previous === 0) return current > 0 ? 100 : 0
+  return ((current - previous) / previous) * 100
+}
+
+// Helper function to build query string
+const buildQueryString = (params: DateRangeParams): string => {
+  const searchParams = new URLSearchParams()
+  
+  if (params.startDate) searchParams.append('startDate', params.startDate)
+  if (params.endDate) searchParams.append('endDate', params.endDate)
+  if (params.dateRange) searchParams.append('dateRange', params.dateRange)
+  
+  const queryString = searchParams.toString()
+  return queryString ? `?${queryString}` : ''
+}
+
 // Analytics API
 export const analyticsApi = {
-  getAnalytics: async () => {
-    const response = await fetch(`${API_BASE_URL}/api/analytics`);
+  getAnalytics: async (dateParams?: DateRangeParams) => {
+    const queryString = dateParams ? buildQueryString(dateParams) : ''
+    const response = await fetch(`${API_BASE_URL}/api/analytics${queryString}`);
     if (!response.ok) {
       throw new Error('Failed to fetch analytics data');
     }
     return response.json();
   },
 
-  getStats: async () => {
-    const response = await fetch(`${API_BASE_URL}/api/analytics/stats`);
+  getStats: async (dateParams?: DateRangeParams) => {
+    const queryString = dateParams ? buildQueryString(dateParams) : ''
+    const response = await fetch(`${API_BASE_URL}/api/analytics/stats${queryString}`);
     if (!response.ok) {
       throw new Error('Failed to fetch analytics stats');
     }
     return response.json();
+  },
+
+  // Method to fetch both current and previous period data for comparison
+  getStatsWithComparison: async (currentParams: DateRangeParams, previousParams?: DateRangeParams) => {
+    const currentPromise = analyticsApi.getStats(currentParams)
+    const previousPromise = previousParams ? analyticsApi.getStats(previousParams) : Promise.resolve(null)
+    
+    const [current, previous] = await Promise.all([currentPromise, previousPromise])
+    
+    return {
+      current,
+      previous,
+      comparison: previous ? {
+        totalUsers: calculatePercentageChange(
+          parseInt(current.totalUsers.replace(/,/g, '')), 
+          parseInt(previous.totalUsers.replace(/,/g, ''))
+        ),
+        revenue: calculatePercentageChange(
+          parseFloat(current.revenue.replace(/[₹,]/g, '')),
+          parseFloat(previous.revenue.replace(/[₹,]/g, ''))
+        ),
+        conversionRate: calculatePercentageChange(
+          parseFloat(current.conversionRate.replace('%', '')),
+          parseFloat(previous.conversionRate.replace('%', ''))
+        ),
+      } : null
+    }
   },
 
   getTrafficSources: async () => {

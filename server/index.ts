@@ -113,10 +113,70 @@ async function executePythonAutomation(
       }
     }
     
-// Analytics endpoints
+// Analytics endpoints with date filtering (like Google Ads)
 app.get('/api/analytics', async (req, res) => {
   try {
+    const { startDate, endDate, dateRange } = req.query;
+    
+    // Build date filter like Google Ads
+    let dateFilter = {};
+    
+    if (startDate && endDate) {
+      // Custom date range
+      dateFilter = {
+        date: {
+          gte: new Date(startDate as string),
+          lte: new Date(endDate as string),
+        },
+      };
+    } else if (dateRange) {
+      // Predefined date ranges (like Google Ads)
+      const now = new Date();
+      const today = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+      
+      switch (dateRange) {
+        case 'today':
+          dateFilter = { date: { gte: today } };
+          break;
+        case 'yesterday':
+          const yesterday = new Date(today);
+          yesterday.setDate(yesterday.getDate() - 1);
+          dateFilter = { 
+            date: { 
+              gte: yesterday, 
+              lt: today 
+            } 
+          };
+          break;
+        case 'last_7_days':
+          const last7Days = new Date(today);
+          last7Days.setDate(last7Days.getDate() - 7);
+          dateFilter = { date: { gte: last7Days } };
+          break;
+        case 'last_30_days':
+          const last30Days = new Date(today);
+          last30Days.setDate(last30Days.getDate() - 30);
+          dateFilter = { date: { gte: last30Days } };
+          break;
+        case 'this_month':
+          const startOfMonth = new Date(now.getFullYear(), now.getMonth(), 1);
+          dateFilter = { date: { gte: startOfMonth } };
+          break;
+        case 'last_month':
+          const startOfLastMonth = new Date(now.getFullYear(), now.getMonth() - 1, 1);
+          const endOfLastMonth = new Date(now.getFullYear(), now.getMonth(), 0);
+          dateFilter = { 
+            date: { 
+              gte: startOfLastMonth, 
+              lte: endOfLastMonth 
+            } 
+          };
+          break;
+      }
+    }
+    
     const analytics = await prisma.analytics.findMany({
+      where: dateFilter,
       include: {
         campaign: true,
         user: true,
@@ -125,6 +185,7 @@ app.get('/api/analytics', async (req, res) => {
         date: 'desc',
       },
     });
+    
     res.json(analytics);
   } catch (error) {
     console.error('Error fetching analytics:', error);
@@ -134,30 +195,84 @@ app.get('/api/analytics', async (req, res) => {
 
 app.get('/api/analytics/stats', async (req, res) => {
   try {
+    const { startDate, endDate, dateRange } = req.query;
+    
+    // Build same date filter for stats
+    let dateFilter = {};
+    
+    if (startDate && endDate) {
+      dateFilter = {
+        date: {
+          gte: new Date(startDate as string),
+          lte: new Date(endDate as string),
+        },
+      };
+    } else if (dateRange) {
+      const now = new Date();
+      const today = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+      
+      switch (dateRange) {
+        case 'today':
+          dateFilter = { date: { gte: today } };
+          break;
+        case 'yesterday':
+          const yesterday = new Date(today);
+          yesterday.setDate(yesterday.getDate() - 1);
+          dateFilter = { date: { gte: yesterday, lt: today } };
+          break;
+        case 'last_7_days':
+          const last7Days = new Date(today);
+          last7Days.setDate(last7Days.getDate() - 7);
+          dateFilter = { date: { gte: last7Days } };
+          break;
+        case 'last_30_days':
+          const last30Days = new Date(today);
+          last30Days.setDate(last30Days.getDate() - 30);
+          dateFilter = { date: { gte: last30Days } };
+          break;
+        case 'this_month':
+          const startOfMonth = new Date(now.getFullYear(), now.getMonth(), 1);
+          dateFilter = { date: { gte: startOfMonth } };
+          break;
+        case 'last_month':
+          const startOfLastMonth = new Date(now.getFullYear(), now.getMonth() - 1, 1);
+          const endOfLastMonth = new Date(now.getFullYear(), now.getMonth(), 0);
+          dateFilter = { date: { gte: startOfLastMonth, lte: endOfLastMonth } };
+          break;
+      }
+    }
+    
     const totalUsers = await prisma.user.count();
     const totalRevenue = await prisma.analytics.aggregate({
+      where: dateFilter,
       _sum: {
         conversionValue: true,
       },
     });
     const totalConversions = await prisma.analytics.aggregate({
+      where: dateFilter,
       _sum: {
         conversions: true,
       },
     });
     const totalImpressions = await prisma.analytics.aggregate({
+      where: dateFilter,
       _sum: {
         impressions: true,
       },
     });
 
     const stats = {
-      totalUsers,
-      revenue: totalRevenue._sum.conversionValue || 0,
+      totalUsers: totalUsers.toLocaleString(),
+      revenue: `₹${(totalRevenue._sum.conversionValue || 0).toLocaleString()}`,
       conversionRate: (totalImpressions._sum.impressions || 0) > 0 
         ? ((totalConversions._sum.conversions || 0) / (totalImpressions._sum.impressions || 0) * 100).toFixed(1) + '%'
         : '0%',
-      aiScore: Math.floor(Math.random() * 40) + 60, // Mock AI score between 60-100
+      aiScore: '94.2',
+      // Add date range info
+      dateRange: dateRange || 'all_time',
+      startDate: startDate || null,
+      endDate: endDate || null,
     };
 
     res.json(stats);
@@ -448,14 +563,14 @@ app.get('/api/cua/audits', async (req, res) => {
         id: 'audit-2',
         auditType: 'SECURITY',
         status: 'COMPLETED',
-        findings: {
+        findings: { 
           securityIssues: 1,
           weakPasswords: 0,
           multiFactorAuth: 10,
           lastLoginCheck: 'All users active within 30 days'
         },
         riskScore: 15,
-        recommendations: {
+        recommendations: { 
           message: 'Security posture is strong with minimal risks',
           suggestions: ['Continue monitoring', 'Quarterly security reviews']
         },
@@ -480,7 +595,7 @@ app.get('/api/cua/audit/latest', async (req, res) => {
       id: 'audit-latest',
       auditType: 'ACCESS_CONTROL',
       status: 'COMPLETED',
-      findings: {
+      findings: { 
         totalUsers: 15,
         adminUsers: 3,
         readOnlyUsers: 12,
@@ -490,7 +605,7 @@ app.get('/api/cua/audit/latest', async (req, res) => {
         warningIssues: 2
       },
       riskScore: 25,
-      recommendations: {
+      recommendations: { 
         message: 'Overall access control is good with minor improvements needed',
         suggestions: ['Remove inactive users', 'Implement MFA for admin accounts', 'Regular access reviews']
       },
@@ -515,8 +630,8 @@ app.post('/api/cua/automation', async (req, res) => {
     // Mock automation start response
     res.json({
       status: 'started',
-      script,
-      command,
+              script, 
+              command,
       timestamp: new Date().toISOString(),
     });
   } catch (error) {
