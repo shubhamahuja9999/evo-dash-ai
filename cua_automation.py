@@ -94,6 +94,10 @@ class GoogleAdsCUAAutomation:
     def setup_browser(self):
         """Setup Chrome browser with appropriate options"""
         try:
+            # Import the browser agent
+            from cua_browser_agent import BrowserAgent
+            self.browser_agent = BrowserAgent()
+            
             from selenium.webdriver.chrome.service import Service
             from webdriver_manager.chrome import ChromeDriverManager
             
@@ -110,7 +114,16 @@ class GoogleAdsCUAAutomation:
             chrome_options.add_argument("--allow-running-insecure-content")
             chrome_options.add_argument("--disable-features=TranslateUI")
             chrome_options.add_argument("--disable-iframes-sandbox-mode")
+            # Use a consistent debugging port
             chrome_options.add_argument("--remote-debugging-port=9222")
+            chrome_options.add_argument("--remote-allow-origins=*")
+            
+            # Enable embedding
+            chrome_options.add_argument("--app=data:,")  # Minimal UI
+            chrome_options.add_argument("--window-position=0,0")
+            
+            # Add custom window name for identification
+            chrome_options.add_argument("--window-name=cua_automation")
             chrome_options.add_argument("--disable-backgrounding-occluded-windows")
             chrome_options.add_argument("--disable-renderer-backgrounding")
             chrome_options.add_argument("--disable-extensions")
@@ -850,18 +863,32 @@ class GoogleAdsCUAAutomation:
             self.logger.error(f"Error setting date range: {e}")
             return False
     
-    def run_automation(self, command=None, description=None):
+    async def run_automation(self, command=None, description=None):
         """Run the automation workflow"""
         try:
-            self.update_progress("Setting up browser", "Initializing")
-            if not self.setup_browser():
-                self.logger.error("Failed to setup browser")
-                return False
+            self.update_progress("Processing command with browser agent", "Initializing")
+            self.logger.info("🤖 Starting browser agent automation")
             
-            self.update_progress("Logging into Google Ads", "In Progress")
-            if not self.login_to_google_ads():
-                self.logger.error("Failed to login to Google Ads")
+            # Use the browser agent to process the command
+            result = await self.browser_agent.process_request(command)
+            
+            if result["type"] == "error":
+                self.logger.error(f"Browser agent error: {result['content']}")
                 return False
+                
+            self.logger.info(f"✅ Browser agent response: {json.dumps(result, indent=2)}")
+            
+            # If we need to use Selenium for specific Google Ads actions
+            if "google ads" in command.lower():
+                self.update_progress("Setting up Selenium browser", "Initializing")
+                if not self.setup_browser():
+                    self.logger.error("Failed to setup browser")
+                    return False
+                
+                self.update_progress("Logging into Google Ads", "In Progress")
+                if not self.login_to_google_ads():
+                    self.logger.error("Failed to login to Google Ads")
+                    return False
             
             # Check if 3-month analysis is requested
             if description and '3 months' in description.lower():
@@ -916,13 +943,13 @@ class GoogleAdsCUAAutomation:
                 self.driver.quit()
                 self.logger.info("Browser closed")
 
-def main():
+async def main():
     try:
         command = sys.argv[1] if len(sys.argv) > 1 else None
         description = sys.argv[2] if len(sys.argv) > 2 else None
         
         automation = GoogleAdsCUAAutomation()
-        success = automation.run_automation(command, description)
+        success = await automation.run_automation(command, description)
         
         if success:
             print("Automation completed successfully")
@@ -939,4 +966,5 @@ def main():
         sys.exit(1)
 
 if __name__ == "__main__":
-    main()
+    import asyncio
+    asyncio.run(main())

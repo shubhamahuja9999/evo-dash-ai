@@ -51,10 +51,126 @@ app.get('/api/campaigns/last-fetch', async (req, res) => {
 });
 
 // CUA Command endpoint
+// Analyze if command needs browser mode
+// Analyze browser actions and provide insights
+app.post('/api/cua/analyze', async (req, res) => {
+  try {
+    const { actions } = req.body;
+    
+    // Process the actions and generate insights
+    const insights = await Promise.all(actions.map(async (action: any) => {
+      switch (action.type) {
+        case 'search':
+          return `Found results for "${action.params.query}"`;
+        case 'click':
+          return `Clicked on "${action.params.selector}"`;
+        case 'extract':
+          return `Extracted data from "${action.params.selector}"`;
+        default:
+          return `Performed ${action.type} action`;
+      }
+    }));
+
+    // Generate a summary
+    const summary = insights.join('\n');
+    
+    res.json({
+      result: summary,
+      insights
+    });
+  } catch (error) {
+    console.error('Error analyzing actions:', error);
+    res.status(500).json({ error: 'Failed to analyze actions' });
+  }
+});
+
+app.post('/api/cua/analyze-mode', async (req, res) => {
+  try {
+    console.log('📥 Received analyze-mode request');
+    const { command } = req.body;
+    console.log('🔍 Analyzing command:', command);
+
+    // Use GPT to analyze the command
+    const prompt = `Analyze this user command and determine what browser actions are needed. The command is: "${command}"
+
+    Return your response in this JSON format:
+    {
+      "mode": "browser" or "normal",
+      "actions": [
+        {
+          "type": "navigate" | "search" | "click" | "googleads",
+          "params": { specific parameters for the action }
+        }
+      ],
+      "explanation": "Brief explanation of what needs to be done"
+    }
+
+    For Google Ads commands, use type: "googleads" with appropriate params.
+    Example response for "add a new campaign to google ads":
+    {
+      "mode": "browser",
+      "actions": [
+        {
+          "type": "navigate",
+          "params": { "url": "https://ads.google.com" }
+        },
+        {
+          "type": "googleads",
+          "params": { 
+            "action": "create_campaign",
+            "shouldPause": false
+          }
+        }
+      ],
+      "explanation": "Need to navigate to Google Ads and create a new campaign"
+    }`;
+
+    console.log('🤖 Asking GPT to analyze command...');
+    const gptResponse = await generateAIResponse(prompt, {
+      temperature: 0.2,
+      max_tokens: 500
+    });
+    
+    // Parse GPT response
+    let parsedResponse;
+    try {
+      // Extract JSON if it's wrapped in markdown code blocks
+      const jsonMatch = gptResponse.match(/```json\n([\s\S]*?)\n```/) || 
+                       gptResponse.match(/```\n([\s\S]*?)\n```/) ||
+                       gptResponse.match(/\{[\s\S]*\}/);
+                       
+      const jsonString = jsonMatch ? jsonMatch[1] || jsonMatch[0] : gptResponse;
+      parsedResponse = JSON.parse(jsonString);
+      console.log('✅ GPT Analysis:', parsedResponse);
+    } catch (error) {
+      console.error('❌ Failed to parse GPT response:', error);
+      // Fallback to basic response
+      parsedResponse = {
+        mode: 'browser',
+        actions: [
+          { type: 'navigate', params: { url: 'https://ads.google.com' } }
+        ],
+        explanation: 'Falling back to basic navigation'
+      };
+    }
+
+    const response = {
+      mode: parsedResponse.mode,
+      actions: parsedResponse.actions,
+      explanation: parsedResponse.explanation
+    };
+    console.log('📤 Sending response:', response);
+    res.json(response);
+  } catch (error) {
+    console.error('Error analyzing command mode:', error);
+    res.status(500).json({ error: 'Failed to analyze command mode' });
+  }
+});
+
 app.post('/api/cua/command', async (req, res) => {
   try {
-    const { command, description } = req.body;
-    console.log('Received CUA command:', { command, description });
+    const { command, mode } = req.body;
+    console.log('Received CUA command:', { command, mode });
     
     const commandId = 'cmd-' + Date.now();
     const timestamp = new Date();
@@ -62,18 +178,17 @@ app.post('/api/cua/command', async (req, res) => {
     // Always use CUA for all commands - fully agentic mode
     const needsCUA = true;
     
-    // Execute Python automation if needed
-    if (needsCUA) {
-      console.log('Executing Python CUA automation');
-      return await executePythonAutomation(command, description, commandId, timestamp, res);
+    if (mode === 'browser') {
+      console.log('Executing browser automation');
+      return await executePythonAutomation(command, commandId, timestamp, res);
     } else {
-      // Otherwise, just use AI to answer
-      console.log('Using AI to answer without CUA automation');
+      // Normal mode - use AI to answer
+      console.log('Using AI to answer in normal mode');
       
-      const aiResponse = await generateAIResponse(
-        `${command}${description ? '\n\n' + description : ''}`,
-        {}
-      );
+      const aiResponse = await generateAIResponse(command, {
+        temperature: 0.7,
+        max_tokens: 500
+      });
       
       return res.json({
         id: commandId,
@@ -95,19 +210,17 @@ app.post('/api/cua/command', async (req, res) => {
 // Helper function to execute Python automation
 async function executePythonAutomation(
   command: string, 
-  description: string | undefined, 
   commandId: string, 
   timestamp: Date,
   res: any
 ) {
   try {
-    // Escape command and description for shell safety
+    // Escape command for shell safety
     const escapedCommand = command.replace(/"/g, '\\"');
-    const escapedDescription = description ? description.replace(/"/g, '\\"') : '';
     
         // Create a promise to handle the async execution
         const pythonResult = await new Promise((resolve, reject) => {
-      const pythonCmd = `python3 cua_automation.py "${escapedCommand}" "${escapedDescription}"`;
+      const pythonCmd = `python3 cua_automation.py "${escapedCommand}"`;
       exec(pythonCmd, (error, stdout, stderr) => {
             if (error) {
               console.error(`Python execution error: ${error}`);
