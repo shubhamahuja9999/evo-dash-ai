@@ -1,232 +1,348 @@
-import os
-import json
-import yaml
 from google.ads.googleads.client import GoogleAdsClient
-from google.ads.googleads.errors import GoogleAdsException
+import pandas as pd
+import yaml
+import sys
 from datetime import datetime, timedelta
+import pytz
 import subprocess
+import json
+import os
 
-def load_google_ads_config():
-    """Load Google Ads configuration from yaml file."""
-    try:
-        with open('google-ads.yaml', 'r') as file:
-            return yaml.safe_load(file)
-    except Exception as e:
-        print(f"❌ Error loading Google Ads config: {e}")
-        raise
+# Load the credentials from your YAML file
+with open('google-ads.yaml', 'r') as f:
+    config = yaml.safe_load(f)
 
-def get_google_ads_client(version='v14'):
-    """Initialize Google Ads API client with specified version."""
-    try:
-        config = load_google_ads_config()
-        return GoogleAdsClient.load_from_dict(config, version=version)
-    except Exception as e:
-        print(f"❌ Error initializing Google Ads client: {e}")
-        raise
+# Get the Google Ads account time zone from config, default to 'Asia/Kolkata'
+account_timezone = config.get('account_timezone', 'Asia/Kolkata')
+tz = pytz.timezone(account_timezone)
+now = datetime.now(tz)
+report_date = (now - timedelta(days=1)).strftime('%Y-%m-%d')
 
-def fetch_campaign_data(client, customer_id):
-    """Fetch campaign performance data from Google Ads API."""
-    ga_service = client.get_service("GoogleAdsService")
+child_account_ids = config.get('child_account_ids', [])
+
+# Currency symbol and decimal mapping
+CURRENCY_MAP = {
+    "INR": {"symbol": "₹", "decimals": 2},
+    "USD": {"symbol": "$", "decimals": 2},
+    "EUR": {"symbol": "€", "decimals": 2},
+    "JPY": {"symbol": "¥", "decimals": 0},
+    # Add more as needed
+}
+
+def fetch_google_ads_data():
+    """Fetch Google Ads campaign data for all child accounts"""
+    # Load the credentials from your YAML file
+    client = GoogleAdsClient.load_from_storage("google-ads.yaml")
     
-    query = """
-        SELECT
-            segments.date,
-            campaign.name,
-            campaign.status,
-            campaign.id,
-            metrics.cost_micros,
-            metrics.impressions,
-            metrics.clicks,
-            metrics.conversions,
-            metrics.average_cpc,
-            metrics.ctr,
-            metrics.conversions_value
-        FROM campaign
-        WHERE segments.date DURING LAST_7_DAYS
-        ORDER BY segments.date DESC
-    """
+    all_data = []
+    for customer_id in child_account_ids:
+        query = """
+            SELECT
+              customer.descriptive_name,
+              customer.currency_code,
+              customer.time_zone,
+              segments.date,
+              campaign.name,
+              campaign_budget.amount_micros,
+              metrics.cost_micros,
+              metrics.impressions,
+              metrics.clicks,
+              metrics.average_cpc,
+              metrics.ctr,
+              metrics.conversions,
+              metrics.cost_per_conversion
+            FROM campaign
+            WHERE segments.date DURING LAST_7_DAYS
+            ORDER BY segments.date
+        """
+        
+        try:
+            # Try v13 first (more stable version)
+            print("Trying Google Ads API v13...")
+            google_ads_service = client.get_service("GoogleAdsService", version="v13")
+            print("Successfully using Google Ads API v13")
+        except Exception as e:
+            print(f"v13 failed: {e}")
+            try:
+                # Fallback to v14
+                print("Trying Google Ads API v14...")
+                google_ads_service = client.get_service("GoogleAdsService", version="v14")
+                print("Successfully using Google Ads API v14")
+            except Exception as e:
+                print(f"v14 failed: {e}")
+                # Fallback to default version
+                print("Trying default Google Ads API version...")
+                google_ads_service = client.get_service("GoogleAdsService")
+                print("Successfully using default Google Ads API version")
+        
+        response = google_ads_service.search(
+            customer_id=customer_id,
+            query=query,
+        )
+        
+        data = []
+        client_name = None
+        currency_code = None
+        currency_symbol = None
+        currency_decimals = 2
+        account_time_zone = None
+        
+        for row in response:
+            if client_name is None:
+                client_name = row.customer.descriptive_name
+            if currency_code is None:
+                currency_code = row.customer.currency_code
+                currency_info = CURRENCY_MAP.get(currency_code, {"symbol": currency_code + " ", "decimals": 2})
+                currency_symbol = currency_info["symbol"]
+                currency_decimals = currency_info["decimals"]
+            if account_time_zone is None:
+                account_time_zone = row.customer.time_zone
+                
+            date = row.segments.date
+            campaign_name = row.campaign.name
+            daily_budget = f"{currency_symbol}{row.campaign_budget.amount_micros / 1_000_000:.{currency_decimals}f}" if row.campaign_budget.amount_micros else f"{currency_symbol}0"
+            spent = f"{currency_symbol}{row.metrics.cost_micros / 1_000_000:.{currency_decimals}f}" if row.metrics.cost_micros else f"{currency_symbol}0"
+            impressions = row.metrics.impressions
+            clicks = row.metrics.clicks
+            cpc = f"{currency_symbol}{row.metrics.average_cpc / 1_000_000:.{currency_decimals}f}" if row.metrics.average_cpc else f"{currency_symbol}0"
+            ctr_value = (clicks / impressions * 100) if impressions else 0
+            ctr = f"{ctr_value:.2f}%"
+            conversions = row.metrics.conversions
+            conv_rate = f"{(conversions / clicks * 100):.2f}" if clicks else "0"
+            cost_per_conv = f"{currency_symbol}{row.metrics.cost_per_conversion / 1_000_000:.{currency_decimals}f}" if row.metrics.cost_per_conversion else f"{currency_symbol}0"
+            
+            data.append([
+                date, campaign_name, daily_budget, spent, impressions, clicks, cpc, ctr, conversions, conv_rate, cost_per_conv
+            ])
+            
+        all_data.append({
+            'customer_id': customer_id,
+            'client_name': client_name,
+            'currency_symbol': currency_symbol,
+            'currency_decimals': currency_decimals,
+            'account_time_zone': account_time_zone,
+            'data': data
+        })
+        
+        print(f"DEBUG: Fetched {len(data)} rows for {client_name} ({customer_id})")
     
-    try:
-        response = ga_service.search_stream(customer_id=customer_id, query=query)
-        campaign_data = []
-        
-        for batch in response:
-            for row in batch.results:
-                campaign_data.append([
-                    row.segments.date.strftime("%Y-%m-%d"),
-                    row.campaign.name,
-                    float(row.campaign.id),  # budget
-                    float(row.metrics.cost_micros) / 1000000,  # cost
-                    row.metrics.impressions,
-                    row.metrics.clicks,
-                    float(row.metrics.average_cpc) / 1000000,  # cpc
-                    float(row.metrics.ctr) * 100,  # ctr
-                    float(row.metrics.conversions),
-                    float(row.metrics.conversions) * 100 / row.metrics.clicks if row.metrics.clicks > 0 else 0,  # conv_rate
-                    float(row.metrics.conversions_value)  # conv_value
-                ])
-        
-        return campaign_data
-    except GoogleAdsException as ex:
-        print(f"❌ Request with ID '{ex.request_id}' failed with status '{ex.error.code().name}'")
-        for error in ex.failure.errors:
-            print(f"\tError with message '{error.message}'.")
-            if error.location:
-                for field_path_element in error.location.field_path_elements:
-                    print(f"\t\tOn field: {field_path_element.field_name}")
-        raise
+    return all_data
 
-def store_campaign_data(data):
-    """Store campaign data in PostgreSQL database using Node.js script."""
-    try:
-        # Create a temporary Node.js script to store data
-        script_content = """
+def store_campaigns_to_database(all_data):
+    """Store the fetched campaign data to PostgreSQL database using Prisma"""
+    
+    # Create a Node.js script to handle the database operations
+    db_script = """
 import { PrismaClient } from '@prisma/client';
 const prisma = new PrismaClient();
 
 async function storeCampaigns(campaignData) {
     try {
-        // Create default user if not exists
-        const user = await prisma.user.upsert({
-            where: { email: 'default@upthrust.ai' },
-            update: {},
-            create: {
-                email: 'default@upthrust.ai',
-                name: 'Default User'
-            }
+        console.log('Starting to store campaign data...');
+        console.log('Total accounts to process:', campaignData.length);
+        
+        // Clear existing data first
+        console.log('Clearing existing campaign and analytics data...');
+        await prisma.analytics.deleteMany({});
+        await prisma.campaign.deleteMany({});
+        console.log('Existing data cleared successfully');
+        
+        // Create a default user if it doesn't exist
+        let defaultUser = await prisma.user.findFirst({
+            where: { email: 'default@upthrust.ai' }
         });
-
-        // Process each campaign
-        for (const [date, name, budget, cost, impressions, clicks, cpc, ctr, conversions, convRate, convValue] of campaignData) {
-            // Create or update campaign
-            const existingCampaign = await prisma.campaign.upsert({
-                where: {
-                    name_userId: {
-                        name: name,
-                        userId: user.id
-                    }
-                },
-                update: {
-                    budget: budget,
-                    status: 'ACTIVE'
-                },
-                create: {
-                    name: name,
-                    budget: budget,
-                    status: 'ACTIVE',
-                    userId: user.id
-                }
-            });
-
-            // Create analytics entry
-            await prisma.analytics.create({
+        
+        if (!defaultUser) {
+            defaultUser = await prisma.user.create({
                 data: {
-                    date: new Date(date),
-                    impressions: impressions,
-                    clicks: clicks,
-                    cost: cost,
-                    conversions: conversions,
-                    conversionValue: convValue,
-                    ctr: ctr / 100,
-                    cpc: cpc,
-                    conversionRate: convRate / 100,
-                    campaignId: existingCampaign.id
+                    email: 'default@upthrust.ai',
+                    name: 'Default User',
+                    role: 'ADMIN'
                 }
             });
+            console.log('Created default user');
         }
-
-        console.log('✅ Campaign data stored successfully!');
+        
+        console.log(`Using user ID: ${defaultUser.id}`);
+        
+        let totalCampaignsCreated = 0;
+        let totalAnalyticsCreated = 0;
+        const processedCampaigns = new Map(); // Track processed campaigns
+        
+        for (const account of campaignData) {
+            const customerId = account.customer_id;
+            const clientName = account.client_name;
+            const currencySymbol = account.currency_symbol;
+            const data = account.data;
+            
+            console.log(`Processing account: ${clientName} (${customerId})`);
+            console.log(`Data points to process: ${data.length}`);
+            
+            // Group data by campaign for better organization
+            const campaignGroups = new Map();
+            data.forEach(row => {
+                const [date, campaignName, dailyBudget, spent, impressions, clicks, cpc, ctr, conversions, convRate, costPerConv] = row;
+                if (!campaignGroups.has(campaignName)) {
+                    campaignGroups.set(campaignName, []);
+                }
+                campaignGroups.get(campaignName).push(row);
+            });
+            
+            console.log(`Found ${campaignGroups.size} unique campaigns`);
+            
+            // Process each campaign
+            for (const [campaignName, campaignData] of campaignGroups) {
+                const campaignUniqueId = `${customerId}_${campaignName}`;
+                
+                console.log(`Processing campaign: ${campaignName} with ${campaignData.length} data points`);
+                
+                // Get the latest row for campaign metadata
+                const latestRow = campaignData[campaignData.length - 1];
+                const [, , dailyBudget] = latestRow;
+                const budgetNumeric = parseFloat(dailyBudget.replace(/[^0-9.-]/g, '')) || 0;
+                
+                try {
+                    // Create campaign only once
+                    const campaign = await prisma.campaign.create({
+                        data: {
+                            name: campaignName,
+                            status: 'ACTIVE',
+                            budget: budgetNumeric,
+                            startDate: new Date(campaignData[0][0]), // First date
+                            endDate: new Date(latestRow[0]), // Last date
+                            googleAdsId: campaignUniqueId,
+                            userId: defaultUser.id
+                        }
+                    });
+                    console.log(`Created campaign: ${campaignName} (ID: ${campaign.id})`);
+                    totalCampaignsCreated++;
+                    processedCampaigns.set(campaignUniqueId, campaign.id);
+                    
+                    // Store analytics data for each date
+                    for (const row of campaignData) {
+                        const [date, , , spent, impressions, clicks, cpc, ctr, conversions, convRate, costPerConv] = row;
+                        
+                        // Parse numeric values
+                        const spentNumeric = parseFloat(spent.replace(/[^0-9.-]/g, '')) || 0;
+                        const impressionsNum = parseInt(impressions) || 0;
+                        const clicksNum = parseInt(clicks) || 0;
+                        const conversionsNum = parseFloat(conversions) || 0;
+                        const ctrValue = parseFloat(ctr.replace('%', '')) / 100 || 0; // Store as decimal
+                        const cpcValue = parseFloat(cpc.replace(/[^0-9.-]/g, '')) || 0;
+                        const costPerConvValue = parseFloat(costPerConv.replace(/[^0-9.-]/g, '')) || 0;
+                        
+                        // Calculate conversion value (estimate)
+                        const conversionValue = conversionsNum * (costPerConvValue * 2); // Assume 2x ROI
+                        
+                        const analytics = await prisma.analytics.create({
+                            data: {
+                                date: new Date(date),
+                                impressions: impressionsNum,
+                                clicks: clicksNum,
+                                cost: spentNumeric,
+                                conversions: Math.round(conversionsNum),
+                                conversionValue: conversionValue,
+                                ctr: ctrValue,
+                                cpc: cpcValue,
+                                costPerConversion: costPerConvValue,
+                                campaignId: campaign.id,
+                                userId: defaultUser.id
+                            }
+                        });
+                        totalAnalyticsCreated++;
+                    }
+                    
+                    console.log(`Created ${campaignData.length} analytics records for ${campaignName}`);
+                    
+                } catch (error) {
+                    console.error(`Error processing campaign ${campaignName}:`, error.message);
+                }
+            }
+        }
+        
+        // Verify the data was stored
+        const finalCampaignCount = await prisma.campaign.count();
+        const finalAnalyticsCount = await prisma.analytics.count();
+        console.log(`Final counts - Campaigns: ${finalCampaignCount}, Analytics: ${finalAnalyticsCount}`);
+        console.log(`Total created in this session - Campaigns: ${totalCampaignsCreated}, Analytics: ${totalAnalyticsCreated}`);
+        
+        console.log('Campaign data stored successfully!');
+        
     } catch (error) {
-        console.error('❌ Error storing campaign data:', error);
-        process.exit(1);
+        console.error('Error storing campaign data:', error);
+        throw error;
     } finally {
         await prisma.$disconnect();
     }
 }
 
-// Get data from command line argument
+// Get campaign data from command line arguments
 const campaignData = JSON.parse(process.argv[2]);
-storeCampaigns(campaignData);
+storeCampaigns(campaignData)
+    .then(() => {
+        console.log('Database operation completed successfully');
+        process.exit(0);
+    })
+    .catch((error) => {
+        console.error('Database operation failed:', error);
+        process.exit(1);
+    });
 """
-
-        # Write the temporary script
-        with open('temp_db_script.mjs', 'w') as f:
-            f.write(script_content)
-
-        # Execute the Node.js script with campaign data
-        process = subprocess.run(
-            ['node', 'temp_db_script.mjs', json.dumps(data)],
+    
+    # Write the script to a temporary file
+    with open('temp_db_script.js', 'w') as f:
+        f.write(db_script)
+    
+    try:
+        # Convert the data to JSON string for passing to Node.js
+        campaign_data_json = json.dumps(all_data)
+        
+        # Run the Node.js script with .mjs extension for ES module support
+        # First rename the file to .mjs
+        os.rename('temp_db_script.js', 'temp_db_script.mjs')
+        
+        # Run the script
+        result = subprocess.run(
+            ['node', 'temp_db_script.mjs', campaign_data_json],
             capture_output=True,
-            text=True
+            text=True,
+            check=True
         )
-
-        if process.returncode != 0:
-            print(f"❌ Error storing data to database: {process.stderr}")
-            raise Exception(f"Database operation failed: {process.stderr}")
-
+        
         print("✅ Campaign data stored to database successfully!")
-
-    except Exception as e:
-        print(f"❌ Error storing campaign data: {e}")
+        print(result.stdout)
+        
+    except subprocess.CalledProcessError as e:
+        print(f"❌ Error storing data to database: {e}")
+        print(f"Error output: {e.stderr}")
         raise
     finally:
-        # Clean up temporary script
+        # Clean up temporary files
+        if os.path.exists('temp_db_script.js'):
+            os.remove('temp_db_script.js')
         if os.path.exists('temp_db_script.mjs'):
             os.remove('temp_db_script.mjs')
 
-def main():
-    """Main function to fetch and store Google Ads data."""
+if __name__ == "__main__":
     print("🔄 Starting Google Ads data fetch and database storage...")
     
     try:
+        # Step 1: Fetch Google Ads data
         print("📊 Fetching Google Ads campaign data...")
-        config = load_google_ads_config()
+        all_data = fetch_google_ads_data()
         
-        # Try different API versions
-        api_versions = ['v13', 'v14', None]  # None will use default version
-        client = None
+        if not all_data:
+            print("❌ No data fetched from Google Ads")
+            sys.exit(1)
         
-        for version in api_versions:
-            try:
-                if version:
-                    print(f"Trying Google Ads API {version}...")
-                else:
-                    print("Trying default Google Ads API version...")
-                client = get_google_ads_client(version)
-                if not version:
-                    print("Successfully using default Google Ads API version")
-                break
-            except Exception as e:
-                print(f"{version if version else 'default'} failed: {str(e)}")
-                continue
+        print(f"✅ Successfully fetched data for {len(all_data)} accounts")
         
-        if not client:
-            raise Exception("Failed to initialize Google Ads client with any version")
-
-        all_campaign_data = []
-        accounts_processed = 0
-        
-        # Process each child account
-        for customer_id in config.get('child_account_ids', []):
-            try:
-                campaign_data = fetch_campaign_data(client, customer_id)
-                print(f"DEBUG: Fetched {len(campaign_data)} rows for {config.get('client_name', 'Unknown')} ({customer_id})")
-                all_campaign_data.extend(campaign_data)
-                accounts_processed += 1
-            except Exception as e:
-                print(f"❌ Error processing account {customer_id}: {e}")
-                continue
-
-        print(f"✅ Successfully fetched data for {accounts_processed} accounts")
-        
+        # Step 2: Store data to database
         print("💾 Storing campaign data to PostgreSQL database...")
-        store_campaign_data(all_campaign_data)
+        store_campaigns_to_database(all_data)
         
         print("🎉 All operations completed successfully!")
-
+        
     except Exception as e:
         print(f"❌ Error in main process: {e}")
-        raise
-
-if __name__ == "__main__":
-    main()
+        sys.exit(1)
