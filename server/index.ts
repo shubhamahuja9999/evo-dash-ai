@@ -19,6 +19,9 @@ function calculatePercentageChange(current: number, previous: number): number {
 }
 import { crmService } from './crm-service.js';
 import { chatService } from './chat-service.js';
+import GoogleAdsService from './google-ads-service.js';
+import AutomationScheduler from './automation-scheduler.js';
+import GoogleAdsChatService from './google-ads-chat-service.js';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = dirname(__filename);
@@ -26,6 +29,11 @@ const __dirname = dirname(__filename);
 const app = express();
 const prisma = new PrismaClient();
 const PORT = process.env.PORT || 3001;
+
+// Initialize Google Ads services
+const googleAdsService = new GoogleAdsService();
+const automationScheduler = new AutomationScheduler();
+const googleAdsChatService = new GoogleAdsChatService();
 
 // Start campaign auto-fetch service
 campaignService.startAutoFetch(30).catch(error => {
@@ -380,6 +388,490 @@ app.post('/api/chat/command', async (req, res) => {
       success: false,
       message: 'Sorry, I encountered an error processing your request.',
       error: error.message 
+    });
+  }
+});
+
+// Google Ads API Endpoints
+app.get('/api/google-ads/dashboard', async (req, res) => {
+  try {
+    const { timeframe = '30d' } = req.query;
+    const userId = req.headers['user-id'] as string || 'default-user-id';
+    const accountId = '8936153023'; // From config - in real app, get from user
+    
+    console.log(`📊 Fetching Google Ads dashboard data for timeframe: ${timeframe}`);
+    
+    // Get account summary
+    const accountSummary = await googleAdsService.getAccountSummary(accountId);
+    
+    // Get automation summary
+    const automationSummary = await automationScheduler.getAccountAutomationSummary(accountId);
+    
+    // Get alerts
+    const alerts = await prisma.accountAlert.findMany({
+      where: { 
+        userId,
+        isResolved: false 
+      },
+      orderBy: { createdAt: 'desc' },
+      take: 10
+    });
+    
+    // Get recommendations
+    const recommendations = await prisma.aIRecommendation.findMany({
+      where: { userId },
+      orderBy: { createdAt: 'desc' },
+      take: 5
+    });
+    
+    // Mock performance data - in real app, fetch from Google Ads
+    const performance = {
+      campaigns: 8,
+      activeAds: 24,
+      totalKeywords: 156,
+      avgCostPerLead: 42.50,
+      conversionRate: 0.045,
+      qualityScore: 7.2
+    };
+    
+    // Mock trends data
+    const trends = Array.from({ length: 30 }, (_, i) => ({
+      date: new Date(Date.now() - i * 24 * 60 * 60 * 1000).toISOString().split('T')[0],
+      spend: Math.random() * 500 + 200
+    })).reverse();
+    
+    const dashboardData = {
+      accountSummary,
+      automation: automationSummary,
+      performance,
+      alerts,
+      trends,
+      recommendations
+    };
+    
+    res.json(dashboardData);
+  } catch (error) {
+    console.error('Error fetching Google Ads dashboard:', error);
+    res.status(500).json({ 
+      success: false,
+      error: 'Failed to fetch dashboard data',
+      details: error.message 
+    });
+  }
+});
+
+// Google Ads Chat Interface
+app.post('/api/google-ads/chat', async (req, res) => {
+  try {
+    const { message, sessionId } = req.body;
+    const userId = req.headers['user-id'] as string || 'default-user-id';
+    
+    let activeSessionId = sessionId;
+    if (!activeSessionId) {
+      activeSessionId = await googleAdsChatService.createSession(userId);
+    }
+    
+    const response = await googleAdsChatService.processMessage(userId, activeSessionId, message);
+    
+    res.json({
+      success: true,
+      sessionId: activeSessionId,
+      ...response
+    });
+  } catch (error) {
+    console.error('Error processing Google Ads chat message:', error);
+    res.status(500).json({ 
+      success: false,
+      error: 'Failed to process chat message',
+      details: error.message 
+    });
+  }
+});
+
+app.get('/api/google-ads/chat/sessions', async (req, res) => {
+  try {
+    const userId = req.headers['user-id'] as string || 'default-user-id';
+    const sessions = await googleAdsChatService.getUserSessions(userId);
+    
+    res.json({
+      success: true,
+      sessions
+    });
+  } catch (error) {
+    console.error('Error fetching chat sessions:', error);
+    res.status(500).json({ 
+      success: false,
+      error: 'Failed to fetch chat sessions',
+      details: error.message 
+    });
+  }
+});
+
+app.get('/api/google-ads/chat/sessions/:sessionId/history', async (req, res) => {
+  try {
+    const { sessionId } = req.params;
+    const history = await googleAdsChatService.getSessionHistory(sessionId);
+    
+    res.json({
+      success: true,
+      history
+    });
+  } catch (error) {
+    console.error('Error fetching chat history:', error);
+    res.status(500).json({ 
+      success: false,
+      error: 'Failed to fetch chat history',
+      details: error.message 
+    });
+  }
+});
+
+// Automation Management
+app.post('/api/google-ads/automation/tasks', async (req, res) => {
+  try {
+    const userId = req.headers['user-id'] as string || 'default-user-id';
+    const taskConfig = req.body;
+    
+    const task = await automationScheduler.createAutomationTask(userId, taskConfig);
+    
+    res.json({
+      success: true,
+      task
+    });
+  } catch (error) {
+    console.error('Error creating automation task:', error);
+    res.status(500).json({ 
+      success: false,
+      error: 'Failed to create automation task',
+      details: error.message 
+    });
+  }
+});
+
+app.get('/api/google-ads/automation/tasks', async (req, res) => {
+  try {
+    const userId = req.headers['user-id'] as string || 'default-user-id';
+    
+    const tasks = await prisma.automationTask.findMany({
+      where: { userId },
+      include: {
+        executions: {
+          orderBy: { startedAt: 'desc' },
+          take: 5
+        }
+      },
+      orderBy: { createdAt: 'desc' }
+    });
+    
+    res.json({
+      success: true,
+      tasks
+    });
+  } catch (error) {
+    console.error('Error fetching automation tasks:', error);
+    res.status(500).json({ 
+      success: false,
+      error: 'Failed to fetch automation tasks',
+      details: error.message 
+    });
+  }
+});
+
+app.post('/api/google-ads/automation/tasks/:taskId/pause', async (req, res) => {
+  try {
+    const { taskId } = req.params;
+    await automationScheduler.pauseAutomationTask(taskId);
+    
+    res.json({
+      success: true,
+      message: 'Task paused successfully'
+    });
+  } catch (error) {
+    console.error('Error pausing automation task:', error);
+    res.status(500).json({ 
+      success: false,
+      error: 'Failed to pause automation task',
+      details: error.message 
+    });
+  }
+});
+
+app.post('/api/google-ads/automation/tasks/:taskId/resume', async (req, res) => {
+  try {
+    const { taskId } = req.params;
+    await automationScheduler.resumeAutomationTask(taskId);
+    
+    res.json({
+      success: true,
+      message: 'Task resumed successfully'
+    });
+  } catch (error) {
+    console.error('Error resuming automation task:', error);
+    res.status(500).json({ 
+      success: false,
+      error: 'Failed to resume automation task',
+      details: error.message 
+    });
+  }
+});
+
+app.post('/api/google-ads/automation/trigger-daily', async (req, res) => {
+  try {
+    const { accountId } = req.body;
+    const result = await automationScheduler.triggerDailyOptimization(accountId);
+    
+    res.json({
+      success: true,
+      result
+    });
+  } catch (error) {
+    console.error('Error triggering daily optimization:', error);
+    res.status(500).json({ 
+      success: false,
+      error: 'Failed to trigger daily optimization',
+      details: error.message 
+    });
+  }
+});
+
+app.get('/api/google-ads/automation/status', async (req, res) => {
+  try {
+    const status = automationScheduler.getStatus();
+    
+    res.json({
+      success: true,
+      status
+    });
+  } catch (error) {
+    console.error('Error getting automation status:', error);
+    res.status(500).json({ 
+      success: false,
+      error: 'Failed to get automation status',
+      details: error.message 
+    });
+  }
+});
+
+// Account Management
+app.get('/api/google-ads/account/:accountId/summary', async (req, res) => {
+  try {
+    const { accountId } = req.params;
+    const summary = await googleAdsService.getAccountSummary(accountId);
+    
+    res.json({
+      success: true,
+      summary
+    });
+  } catch (error) {
+    console.error('Error fetching account summary:', error);
+    res.status(500).json({ 
+      success: false,
+      error: 'Failed to fetch account summary',
+      details: error.message 
+    });
+  }
+});
+
+app.get('/api/google-ads/account/:accountId/billing', async (req, res) => {
+  try {
+    const { accountId } = req.params;
+    const billingInfo = await googleAdsService.checkAccountBilling(accountId);
+    
+    res.json({
+      success: true,
+      billingInfo
+    });
+  } catch (error) {
+    console.error('Error checking account billing:', error);
+    res.status(500).json({ 
+      success: false,
+      error: 'Failed to check account billing',
+      details: error.message 
+    });
+  }
+});
+
+app.post('/api/google-ads/account/:accountId/fix-payment', async (req, res) => {
+  try {
+    const { accountId } = req.params;
+    const result = await googleAdsService.fixPaymentProblems(accountId);
+    
+    res.json({
+      success: true,
+      result
+    });
+  } catch (error) {
+    console.error('Error fixing payment problems:', error);
+    res.status(500).json({ 
+      success: false,
+      error: 'Failed to fix payment problems',
+      details: error.message 
+    });
+  }
+});
+
+// Keyword Management
+app.get('/api/google-ads/account/:accountId/negative-keywords', async (req, res) => {
+  try {
+    const { accountId } = req.params;
+    const negativeKeywords = await googleAdsService.findNegativeKeywords(accountId);
+    
+    res.json({
+      success: true,
+      negativeKeywords
+    });
+  } catch (error) {
+    console.error('Error finding negative keywords:', error);
+    res.status(500).json({ 
+      success: false,
+      error: 'Failed to find negative keywords',
+      details: error.message 
+    });
+  }
+});
+
+app.post('/api/google-ads/account/:accountId/negative-keywords', async (req, res) => {
+  try {
+    const { accountId } = req.params;
+    const { negativeKeywords } = req.body;
+    
+    await googleAdsService.addNegativeKeywords(accountId, negativeKeywords);
+    
+    res.json({
+      success: true,
+      message: `Added ${negativeKeywords.length} negative keywords`
+    });
+  } catch (error) {
+    console.error('Error adding negative keywords:', error);
+    res.status(500).json({ 
+      success: false,
+      error: 'Failed to add negative keywords',
+      details: error.message 
+    });
+  }
+});
+
+app.post('/api/google-ads/account/:accountId/optimize-bids', async (req, res) => {
+  try {
+    const { accountId } = req.params;
+    await googleAdsService.optimizeKeywordBids(accountId);
+    
+    res.json({
+      success: true,
+      message: 'Keyword bids optimized successfully'
+    });
+  } catch (error) {
+    console.error('Error optimizing bids:', error);
+    res.status(500).json({ 
+      success: false,
+      error: 'Failed to optimize bids',
+      details: error.message 
+    });
+  }
+});
+
+// Ad Testing
+app.post('/api/google-ads/account/:accountId/ad-tests', async (req, res) => {
+  try {
+    const { accountId } = req.params;
+    const { adGroupId, baseAd } = req.body;
+    
+    const adIds = await googleAdsService.createAdVariants(accountId, adGroupId, baseAd);
+    
+    res.json({
+      success: true,
+      adIds,
+      message: `Created ${adIds.length} ad variants for testing`
+    });
+  } catch (error) {
+    console.error('Error creating ad test:', error);
+    res.status(500).json({ 
+      success: false,
+      error: 'Failed to create ad test',
+      details: error.message 
+    });
+  }
+});
+
+app.get('/api/google-ads/account/:accountId/ad-performance', async (req, res) => {
+  try {
+    const { accountId } = req.params;
+    const { adIds } = req.query;
+    
+    const adIdArray = typeof adIds === 'string' ? adIds.split(',') : [];
+    const performance = await googleAdsService.evaluateAdPerformance(accountId, adIdArray);
+    
+    res.json({
+      success: true,
+      performance
+    });
+  } catch (error) {
+    console.error('Error evaluating ad performance:', error);
+    res.status(500).json({ 
+      success: false,
+      error: 'Failed to evaluate ad performance',
+      details: error.message 
+    });
+  }
+});
+
+// Smart Targeting
+app.get('/api/google-ads/account/:accountId/geographic-performance', async (req, res) => {
+  try {
+    const { accountId } = req.params;
+    const geoPerformance = await googleAdsService.trackCostPerLead(accountId);
+    
+    res.json({
+      success: true,
+      geoPerformance
+    });
+  } catch (error) {
+    console.error('Error tracking cost per lead:', error);
+    res.status(500).json({ 
+      success: false,
+      error: 'Failed to track cost per lead',
+      details: error.message 
+    });
+  }
+});
+
+app.post('/api/google-ads/account/:accountId/adjust-bids-location', async (req, res) => {
+  try {
+    const { accountId } = req.params;
+    const { adjustments } = req.body;
+    
+    await googleAdsService.adjustBidsByLocation(accountId, adjustments);
+    
+    res.json({
+      success: true,
+      message: `Applied ${adjustments.length} bid adjustments by location`
+    });
+  } catch (error) {
+    console.error('Error adjusting bids by location:', error);
+    res.status(500).json({ 
+      success: false,
+      error: 'Failed to adjust bids by location',
+      details: error.message 
+    });
+  }
+});
+
+// Run daily optimization for account
+app.post('/api/google-ads/account/:accountId/daily-optimization', async (req, res) => {
+  try {
+    const { accountId } = req.params;
+    const result = await googleAdsService.runDailyOptimization(accountId);
+    
+    res.json({
+      success: true,
+      result
+    });
+  } catch (error) {
+    console.error('Error running daily optimization:', error);
+    res.status(500).json({ 
+      success: false,
+      error: 'Failed to run daily optimization',
+      details: error.message 
     });
   }
 });

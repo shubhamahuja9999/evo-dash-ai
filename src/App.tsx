@@ -11,6 +11,7 @@ import Insights from "./pages/Insights";
 import { CUADashboard } from "./components/cua-dashboard";
 import NotFound from "./pages/NotFound";
 import { DateRangeProvider } from "./contexts/date-range-context";
+import GoogleAdsDashboard from "./components/google-ads-dashboard";
 
 const queryClient = new QueryClient();
 
@@ -28,6 +29,7 @@ const App = () => (
               <Route path="campaigns/:campaignId" element={<CampaignDetails />} />
               <Route path="insights" element={<Insights />} />
               <Route path="cua" element={<CUADashboard />} />
+              <Route path="google-ads" element={<GoogleAdsDashboard />} />
             </Route>
             {/* ADD ALL CUSTOM ROUTES ABOVE THE CATCH-ALL "*" ROUTE */}
             <Route path="*" element={<NotFound />} />
