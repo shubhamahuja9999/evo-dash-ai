@@ -10,27 +10,30 @@ import CampaignDetails from "./pages/CampaignDetails";
 import Insights from "./pages/Insights";
 import { CUADashboard } from "./components/cua-dashboard";
 import NotFound from "./pages/NotFound";
+import { DateRangeProvider } from "./contexts/date-range-context";
 
 const queryClient = new QueryClient();
 
 const App = () => (
   <QueryClientProvider client={queryClient}>
     <TooltipProvider>
-      <Toaster />
-      <Sonner />
-      <BrowserRouter>
-        <Routes>
-          <Route path="/" element={<DashboardLayout />}>
-            <Route index element={<Analytics />} />
-            <Route path="campaigns" element={<Campaigns />} />
-            <Route path="campaigns/:campaignId" element={<CampaignDetails />} />
-            <Route path="insights" element={<Insights />} />
-            <Route path="cua" element={<CUADashboard />} />
-          </Route>
-          {/* ADD ALL CUSTOM ROUTES ABOVE THE CATCH-ALL "*" ROUTE */}
-          <Route path="*" element={<NotFound />} />
-        </Routes>
-      </BrowserRouter>
+      <DateRangeProvider>
+        <Toaster />
+        <Sonner />
+        <BrowserRouter>
+          <Routes>
+            <Route path="/" element={<DashboardLayout />}>
+              <Route index element={<Analytics />} />
+              <Route path="campaigns" element={<Campaigns />} />
+              <Route path="campaigns/:campaignId" element={<CampaignDetails />} />
+              <Route path="insights" element={<Insights />} />
+              <Route path="cua" element={<CUADashboard />} />
+            </Route>
+            {/* ADD ALL CUSTOM ROUTES ABOVE THE CATCH-ALL "*" ROUTE */}
+            <Route path="*" element={<NotFound />} />
+          </Routes>
+        </BrowserRouter>
+      </DateRangeProvider>
     </TooltipProvider>
   </QueryClientProvider>
 );

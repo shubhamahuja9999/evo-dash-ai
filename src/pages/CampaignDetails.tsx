@@ -29,6 +29,8 @@ import {
 } from 'recharts';
 import { useQuery } from '@tanstack/react-query';
 import { useParams, useNavigate } from 'react-router-dom';
+import { useDateRangeContext } from '@/contexts/date-range-context';
+import type { DateRangeParams } from '@/hooks/use-date-range';
 
 interface CampaignAnalytics {
   date: string;
@@ -54,9 +56,10 @@ interface CampaignDetails {
 }
 
 // API function to fetch campaign details
-const fetchCampaignDetails = async (campaignId: string): Promise<CampaignDetails> => {
+const fetchCampaignDetails = async (campaignId: string, dateParams?: DateRangeParams): Promise<CampaignDetails> => {
   const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || 'http://localhost:3001';
-  const response = await fetch(`${API_BASE_URL}/api/campaigns/${campaignId}`);
+  const queryString = dateParams ? `?${new URLSearchParams(dateParams as any).toString()}` : '';
+  const response = await fetch(`${API_BASE_URL}/api/campaigns/${campaignId}${queryString}`);
   
   if (!response.ok) {
     throw new Error('Failed to fetch campaign details');
@@ -78,10 +81,11 @@ const getStatusColor = (status: string) => {
 const CampaignDetails = () => {
   const { campaignId } = useParams<{ campaignId: string }>();
   const navigate = useNavigate();
+  const { apiParams } = useDateRangeContext();
 
   const { data: campaign, isLoading, error } = useQuery<CampaignDetails>({
-    queryKey: ['campaign-details', campaignId],
-    queryFn: () => fetchCampaignDetails(campaignId!),
+    queryKey: ['campaign-details', campaignId, apiParams],
+    queryFn: () => fetchCampaignDetails(campaignId!, apiParams),
     enabled: !!campaignId,
   });
 

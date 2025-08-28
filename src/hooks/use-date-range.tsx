@@ -20,54 +20,67 @@ export function useDateRange(initialPreset: string = 'last_7_days') {
     comparisonEnabled: false,
   })
 
+  // Helper function to get start of day
+  const getStartOfDay = (date: Date): Date => {
+    const newDate = new Date(date)
+    newDate.setHours(0, 0, 0, 0)
+    return newDate
+  }
+
+  // Helper function to get end of day
+  const getEndOfDay = (date: Date): Date => {
+    const newDate = new Date(date)
+    newDate.setHours(23, 59, 59, 999)
+    return newDate
+  }
+
   // Calculate actual date range based on preset or custom range
   const currentRange = useMemo(() => {
-    if (state.preset === 'custom' && state.customRange) {
+    const now = new Date()
+    const today = getStartOfDay(now)
+
+    if (state.preset === 'custom' && state.customRange?.from) {
       return {
-        from: state.customRange.from,
-        to: state.customRange.to || state.customRange.from,
+        from: getStartOfDay(state.customRange.from),
+        to: getEndOfDay(state.customRange.to || state.customRange.from),
       }
     }
 
-    // Calculate preset dates
-    const now = new Date()
-    const today = new Date(now.getFullYear(), now.getMonth(), now.getDate())
-
     switch (state.preset) {
       case 'today':
-        return { from: today, to: today }
+        return { from: today, to: getEndOfDay(today) }
       
       case 'yesterday': {
         const yesterday = new Date(today)
         yesterday.setDate(yesterday.getDate() - 1)
-        return { from: yesterday, to: yesterday }
+        return { from: getStartOfDay(yesterday), to: getEndOfDay(yesterday) }
       }
       
       case 'last_7_days': {
         const last7Days = new Date(today)
-        last7Days.setDate(last7Days.getDate() - 7)
-        return { from: last7Days, to: today }
+        last7Days.setDate(last7Days.getDate() - 6) // -6 because we want last 7 days including today
+        return { from: getStartOfDay(last7Days), to: getEndOfDay(today) }
       }
       
       case 'last_30_days': {
         const last30Days = new Date(today)
-        last30Days.setDate(last30Days.getDate() - 30)
-        return { from: last30Days, to: today }
+        last30Days.setDate(last30Days.getDate() - 29) // -29 because we want last 30 days including today
+        return { from: getStartOfDay(last30Days), to: getEndOfDay(today) }
       }
       
       case 'this_month': {
         const startOfMonth = new Date(now.getFullYear(), now.getMonth(), 1)
-        return { from: startOfMonth, to: today }
+        return { from: getStartOfDay(startOfMonth), to: getEndOfDay(today) }
       }
       
       case 'last_month': {
         const startOfLastMonth = new Date(now.getFullYear(), now.getMonth() - 1, 1)
         const endOfLastMonth = new Date(now.getFullYear(), now.getMonth(), 0)
-        return { from: startOfLastMonth, to: endOfLastMonth }
+        return { from: getStartOfDay(startOfLastMonth), to: getEndOfDay(endOfLastMonth) }
       }
       
       default:
-        return { from: today, to: today }
+        return { from: today, to: getEndOfDay(today) }
     }
   }, [state.preset, state.customRange])
 

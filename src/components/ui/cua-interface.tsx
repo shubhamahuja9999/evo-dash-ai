@@ -7,21 +7,39 @@ import { Terminal, Play, RefreshCw, Pause, X, Maximize2, Minimize2, MonitorSmart
 import { sendCUARequest, extractComputerCalls, extractReasoningItems, getSummaryText, ComputerCall } from '../../lib/cua';
 import { executeAction, takeScreenshot, navigateTo, initBrowser, closeBrowser } from '../../lib/browser-automation';
 
+type BrowserEngine = 'duckduckgo' | 'bing';
+
 interface CUAInterfaceProps {
   isOpen: boolean;
   onClose: () => void;
   onMinimize: () => void;
   isMinimized: boolean;
   title?: string;
+  defaultEngine?: BrowserEngine;
 }
+
+const BROWSER_ENGINES = {
+  duckduckgo: {
+    name: 'DuckDuckGo',
+    url: 'https://duckduckgo.com/?q=',
+    icon: '🦆'
+  },
+  bing: {
+    name: 'Bing',
+    url: 'https://www.bing.com/search?q=',
+    icon: '🔍'
+  }
+} as const;
 
 export function CUAInterface({
   isOpen,
   onClose,
   onMinimize,
   isMinimized,
-  title = 'Agentic CUA'
+  title = 'Agentic CUA',
+  defaultEngine = 'duckduckgo'
 }: CUAInterfaceProps) {
+  const [browserEngine, setBrowserEngine] = useState<BrowserEngine>(defaultEngine);
   const [status, setStatus] = useState<'idle' | 'running' | 'completed' | 'error'>('idle');
   const [output, setOutput] = useState<string[]>([]);
   const [isFullscreen, setIsFullscreen] = useState(false);
@@ -51,22 +69,18 @@ export function CUAInterface({
   // Function to start the CUA process - fully agentic mode
   const startCUA = async () => {
     if (!prompt.trim()) {
-      setOutput(prev => [...prev, '⚠️ Please enter a prompt to start the CUA.']);
+      setOutput(prev => [...prev, 'Please enter a prompt to start the CUA.']);
       return;
     }
     
     setStatus('running');
-    setOutput(prev => [...prev, '🚀 Starting Computer-Using Agent in agentic mode...']);
-    setOutput(prev => [...prev, `💬 Processing your request: "${prompt}"`]);
-    setOutput(prev => [...prev, '👤 Note: You will need to login to your Google account when prompted']);
-    setOutput(prev => [...prev, '🔒 Complete any 2FA verification if required']);
-    setOutput(prev => [...prev, '⏳ The automation will continue after login is complete']);
-    setOutput(prev => [...prev, '⚠️ IMPORTANT: DO NOT CLOSE THE BROWSER WINDOW MANUALLY']);
+    setOutput(prev => [...prev, 'Starting Computer-Using Agent...']);
+    setOutput(prev => [...prev, `Processing your request: "${prompt}"`]);
     setIsProcessing(true);
     
     try {
-      // Initialize browser
-      setOutput(prev => [...prev, '🌐 Initializing browser...']);
+      // Initialize browser with selected engine
+      setOutput(prev => [...prev, `Initializing browser with ${BROWSER_ENGINES[browserEngine].name}...`]);
       await initBrowser();
       
       // Take initial screenshot
@@ -77,8 +91,8 @@ export function CUAInterface({
         throw new Error('Failed to take initial screenshot');
       }
       
-      // Send initial request to CUA
-      setOutput(prev => [...prev, '📤 Sending request to Computer-Using Agent...']);
+      // Send initial request to CUA with browser engine info
+      setOutput(prev => [...prev, 'Sending request to Computer-Using Agent...']);
       const response = await sendCUARequest(prompt, screenshotBase64);
       
       // Store response ID for future requests
@@ -90,7 +104,20 @@ export function CUAInterface({
     } catch (error) {
       console.error('CUA error:', error);
       setStatus('error');
-      setOutput(prev => [...prev, `❌ Error: ${error.message}`]);
+      if (error.message.includes('403')) {
+        setOutput(prev => [...prev, `Error: Access denied. Switching to ${BROWSER_ENGINES[browserEngine].name} search...`]);
+        try {
+          // Fallback to direct search
+          const searchUrl = BROWSER_ENGINES[browserEngine].url + encodeURIComponent(prompt);
+          await navigateTo(searchUrl);
+          setOutput(prev => [...prev, `Redirected to ${BROWSER_ENGINES[browserEngine].name} search.`]);
+          setStatus('completed');
+        } catch (fallbackError) {
+          setOutput(prev => [...prev, `Error: ${fallbackError.message}`]);
+        }
+      } else {
+        setOutput(prev => [...prev, `Error: ${error.message}`]);
+      }
     } finally {
       setIsProcessing(false);
     }
@@ -105,7 +132,7 @@ export function CUAInterface({
     // Get summary text from reasoning items
     const summaryText = getSummaryText(reasoningItems);
     if (summaryText) {
-      setOutput(prev => [...prev, `💭 ${summaryText}`]);
+      setOutput(prev => [...prev, `${summaryText}`]);
     }
     
     // If there are no computer calls, we're done
@@ -113,11 +140,11 @@ export function CUAInterface({
       // Check if there's a text response
       const textResponses = response.output.filter(item => item.type === 'text');
       if (textResponses.length > 0) {
-        setOutput(prev => [...prev, `🤖 ${textResponses[0].text}`]);
+        setOutput(prev => [...prev, `${textResponses[0].text}`]);
       }
       
       setStatus('completed');
-      setOutput(prev => [...prev, '✅ CUA task completed.']);
+      setOutput(prev => [...prev, 'CUA task completed.']);
       return;
     }
     
@@ -128,11 +155,11 @@ export function CUAInterface({
     // Check for safety checks
     if (computerCall.pending_safety_checks && computerCall.pending_safety_checks.length > 0) {
       setPendingSafetyChecks(computerCall.pending_safety_checks);
-      setOutput(prev => [...prev, '⚠️ Safety check required. Please review and acknowledge.']);
+      setOutput(prev => [...prev, 'Safety check required. Please review and acknowledge.']);
       
       // Display safety check messages
       computerCall.pending_safety_checks.forEach(check => {
-        setOutput(prev => [...prev, `🔒 ${check.code}: ${check.message}`]);
+        setOutput(prev => [...prev, `${check.code}: ${check.message}`]);
       });
       
       return;
@@ -140,7 +167,7 @@ export function CUAInterface({
     
     // Execute the action
     const action = computerCall.action;
-    setOutput(prev => [...prev, `🖱️ Executing action: ${action.type}`]);
+    setOutput(prev => [...prev, `Executing action: ${action.type}`]);
     
     try {
       await executeAction(action);
@@ -154,7 +181,7 @@ export function CUAInterface({
       }
       
       // Send the screenshot back to CUA
-      setOutput(prev => [...prev, '📤 Sending screenshot to Computer-Using Agent...']);
+      setOutput(prev => [...prev, 'Sending screenshot to Computer-Using Agent...']);
       const nextResponse = await sendCUARequest(
         '',
         screenshotBase64,
@@ -175,7 +202,7 @@ export function CUAInterface({
     } catch (error) {
       console.error('Error executing action:', error);
       setStatus('error');
-      setOutput(prev => [...prev, `❌ Error executing action: ${error.message}`]);
+      setOutput(prev => [...prev, `Error executing action: ${error.message}`]);
     }
   };
   
@@ -183,7 +210,7 @@ export function CUAInterface({
   const acknowledgeSafetyChecks = () => {
     setAcknowledgedSafetyChecks(pendingSafetyChecks);
     setPendingSafetyChecks([]);
-    setOutput(prev => [...prev, '✅ Safety checks acknowledged. Continuing...']);
+    setOutput(prev => [...prev, 'Safety checks acknowledged. Continuing...']);
     
     // Continue processing with the acknowledged safety checks
     if (previousResponseId && lastCallId) {
@@ -210,7 +237,7 @@ export function CUAInterface({
         .catch(error => {
           console.error('Error after acknowledging safety checks:', error);
           setStatus('error');
-          setOutput(prev => [...prev, `❌ Error: ${error.message}`]);
+          setOutput(prev => [...prev, `Error: ${error.message}`]);
         });
     }
   };
@@ -218,7 +245,7 @@ export function CUAInterface({
   // Function to stop CUA
   const stopCUA = async () => {
     setStatus('idle');
-    setOutput(prev => [...prev, '⏹️ CUA stopped by user.']);
+    setOutput(prev => [...prev, 'CUA stopped by user.']);
   };
   
   // Function to clear output
@@ -322,13 +349,29 @@ export function CUAInterface({
           )}
         </div>
         
-        <Textarea 
-          placeholder="Enter any prompt for the Computer-Using Agent..."
-          value={prompt}
-          onChange={(e) => setPrompt(e.target.value)}
-          disabled={isProcessing}
-          className="h-20 min-h-0"
-        />
+        <div className="flex flex-col gap-2">
+          <div className="flex items-center gap-2">
+            {Object.entries(BROWSER_ENGINES).map(([key, engine]) => (
+              <Button
+                key={key}
+                variant={browserEngine === key ? "default" : "outline"}
+                size="sm"
+                onClick={() => setBrowserEngine(key as BrowserEngine)}
+                disabled={isProcessing}
+                className="gap-1"
+              >
+                {engine.icon} {engine.name}
+              </Button>
+            ))}
+          </div>
+          <Textarea 
+            placeholder={`Tell the AI what to search on ${BROWSER_ENGINES[browserEngine].name}...`}
+            value={prompt}
+            onChange={(e) => setPrompt(e.target.value)}
+            disabled={isProcessing}
+            className="h-20 min-h-0"
+          />
+        </div>
       </CardContent>
       
       {/* No quick test buttons in agentic mode */}

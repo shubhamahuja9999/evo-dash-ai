@@ -1,4 +1,13 @@
 #!/usr/bin/env python3
+# CUA Automation with undetected-chromedriver
+# 
+# Usage: python3 cua_automation.py "your command here"
+# Examples:
+#   python3 cua_automation.py "open https://duckduckgo.com"
+#   python3 cua_automation.py "search for undetected chromedriver"
+#   python3 cua_automation.py "analyze google ads campaign performance"
+#
+# Note: For OpenAI features, set OPENAI_API_KEY environment variable
 import os
 import sys
 import time
@@ -6,6 +15,23 @@ import json
 import openai
 from datetime import datetime
 import pytz
+import platform
+import ssl
+import certifi
+
+# Fix SSL certificate verification issues on macOS
+if platform.system() == 'Darwin':  # macOS
+    ssl._create_default_https_context = ssl._create_unverified_context
+    os.environ['REQUESTS_CA_BUNDLE'] = certifi.where()
+
+# Try to import undetected-chromedriver, but don't fail if it's not available
+try:
+    import undetected_chromedriver as uc
+    UNDETECTED_AVAILABLE = True
+except ImportError:
+    UNDETECTED_AVAILABLE = False
+    print("⚠️ undetected-chromedriver not available, falling back to standard selenium")
+
 from selenium import webdriver
 from selenium.webdriver.common.by import By
 from selenium.webdriver.support.ui import WebDriverWait
@@ -21,6 +47,7 @@ class GoogleAdsCUAAutomation:
         self.driver = None
         self.ist_timezone = pytz.timezone('Asia/Kolkata')
         self.openai_client = None
+        self.browser_agent = None
         self.load_config()
         
     def setup_logging(self):
@@ -35,13 +62,20 @@ class GoogleAdsCUAAutomation:
     def load_config(self):
         """Load configuration from environment variables"""
         try:
+            # Try to configure OpenAI client if API key is available
             openai_api_key = os.getenv('OPENAI_API_KEY')
             if openai_api_key:
                 self.openai_client = openai.OpenAI(api_key=openai_api_key)
                 self.logger.info("✅ OpenAI client configured")
+            else:
+                self.logger.warning("⚠️ OPENAI_API_KEY not found in environment variables")
+                self.logger.warning("⚠️ Some AI features will be limited")
+                self.openai_client = None
+            
             return True
         except Exception as e:
             self.logger.error(f"Error loading configuration: {e}")
+            self.openai_client = None
             return False
     
     def test_cursor_visibility(self):
@@ -92,77 +126,118 @@ class GoogleAdsCUAAutomation:
             self.logger.warning(f"Could not test cursor: {e}")
     
     def setup_browser(self):
-        """Setup Chrome browser with appropriate options"""
+        """Setup Chrome browser with undetected-chromedriver for enhanced anti-detection"""
         try:
-            # Import the browser agent
-            from cua_browser_agent import BrowserAgent
-            self.browser_agent = BrowserAgent()
+            # Initialize browser agent
+            self.browser_agent = None
             
-            from selenium.webdriver.chrome.service import Service
-            from webdriver_manager.chrome import ChromeDriverManager
+            # Check if undetected-chromedriver is available
+            if UNDETECTED_AVAILABLE:
+                try:
+                    # Configure undetected-chromedriver options
+                    options = uc.ChromeOptions()
+                    
+                    # Basic configuration
+                    options.add_argument("--no-sandbox")
+                    options.add_argument("--disable-dev-shm-usage")
+                    
+                    # Window configuration
+                    options.add_argument("--window-position=0,0")
+                    options.add_argument("--window-name=cua_automation")
+                    
+                    # Performance optimizations
+                    options.add_argument("--disable-gpu")
+                    options.add_argument("--disable-background-timer-throttling")
+                    options.add_argument("--disable-backgrounding-occluded-windows")
+                    options.add_argument("--disable-renderer-backgrounding")
+                    
+                    # Disable unnecessary features
+                    options.add_argument("--disable-features=TranslateUI")
+                    options.add_argument("--disable-extensions")
+                    options.add_argument("--disable-default-apps")
+                    options.add_argument("--no-first-run")
+                    options.add_argument("--no-default-browser-check")
+                    
+                    # Reduce logging
+                    options.add_argument("--disable-logging")
+                    options.add_argument("--disable-gpu-logging")
+                    options.add_argument("--silent")
+                    
+                    # Security settings (more permissive for automation)
+                    options.add_argument("--disable-web-security")
+                    options.add_argument("--allow-running-insecure-content")
+                    options.add_argument("--disable-iframes-sandbox-mode")
+                    
+                    # SSL certificate verification fix
+                    options.add_argument("--ignore-certificate-errors")
+                    options.add_argument("--ignore-ssl-errors")
+                    
+                    # Handle headless mode if configured
+                    headless = os.getenv('BROWSER_HEADLESS', 'false').lower() == 'true'
+                    
+                    # Create undetected-chromedriver instance
+                    self.logger.info("🔄 Initializing undetected-chromedriver...")
+                    self.driver = uc.Chrome(
+                        options=options,
+                        headless=headless,
+                        use_subprocess=True,  # Run browser in subprocess for better stability
+                        version_main=None,    # Auto-detect Chrome version
+                        suppress_welcome=True # Suppress welcome page
+                    )
+                    
+                    self.logger.info("✅ Undetected Chrome browser initialized successfully")
+                except Exception as uc_error:
+                    self.logger.error(f"Failed to initialize undetected-chromedriver: {uc_error}")
+                    self.logger.info("⚠️ Falling back to standard Selenium ChromeDriver")
+                    raise uc_error
+            else:
+                self.logger.info("⚠️ Undetected-chromedriver not available, using standard ChromeDriver")
+                
+                # Fallback to standard Selenium ChromeDriver
+                from selenium.webdriver.chrome.service import Service
+                from selenium.webdriver.chrome.options import Options
+                
+                # Try to get ChromeDriver path
+                try:
+                    from webdriver_manager.chrome import ChromeDriverManager
+                    driver_path = ChromeDriverManager().install()
+                except Exception as wdm_error:
+                    self.logger.warning(f"Could not use webdriver_manager: {wdm_error}")
+                    driver_path = None
+                
+                chrome_options = Options()
+                chrome_options.add_argument("--no-sandbox")
+                chrome_options.add_argument("--disable-dev-shm-usage")
+                chrome_options.add_argument("--disable-blink-features=AutomationControlled")
+                chrome_options.add_experimental_option("excludeSwitches", ["enable-automation"])
+                chrome_options.add_experimental_option('useAutomationExtension', False)
+                chrome_options.add_argument("--ignore-certificate-errors")
+                chrome_options.add_argument("--ignore-ssl-errors")
+                
+                if os.getenv('BROWSER_HEADLESS', 'false').lower() == 'true':
+                    chrome_options.add_argument("--headless")
+                
+                if driver_path:
+                    service = Service(driver_path)
+                    self.driver = webdriver.Chrome(service=service, options=chrome_options)
+                else:
+                    self.driver = webdriver.Chrome(options=chrome_options)
+                
+                self.driver.execute_script("Object.defineProperty(navigator, 'webdriver', {get: () => undefined})")
+                self.logger.info("✅ Standard Chrome browser initialized successfully")
             
-            chrome_options = Options()
-            chrome_options.add_argument("--no-sandbox")
-            chrome_options.add_argument("--disable-dev-shm-usage")
-            chrome_options.add_argument("--disable-blink-features=AutomationControlled")
-            chrome_options.add_experimental_option("excludeSwitches", ["enable-automation"])
-            chrome_options.add_experimental_option('useAutomationExtension', False)
-            
-            # Additional options to prevent timeouts and improve stability
-            chrome_options.add_argument("--disable-gpu")
-            chrome_options.add_argument("--disable-web-security")
-            chrome_options.add_argument("--allow-running-insecure-content")
-            chrome_options.add_argument("--disable-features=TranslateUI")
-            chrome_options.add_argument("--disable-iframes-sandbox-mode")
-            # Use a consistent debugging port
-            chrome_options.add_argument("--remote-debugging-port=9222")
-            chrome_options.add_argument("--remote-allow-origins=*")
-            
-            # Enable embedding
-            chrome_options.add_argument("--app=data:,")  # Minimal UI
-            chrome_options.add_argument("--window-position=0,0")
-            
-            # Add custom window name for identification
-            chrome_options.add_argument("--window-name=cua_automation")
-            chrome_options.add_argument("--disable-backgrounding-occluded-windows")
-            chrome_options.add_argument("--disable-renderer-backgrounding")
-            chrome_options.add_argument("--disable-extensions")
-            chrome_options.add_argument("--disable-plugins")
-            chrome_options.add_argument("--disable-background-timer-throttling")
-            chrome_options.add_argument("--disable-backgrounding-occluded-windows")
-            chrome_options.add_argument("--disable-renderer-backgrounding")
-            chrome_options.add_argument("--disable-features=TranslateUI,BlinkGenPropertyTrees")
-            chrome_options.add_argument("--no-first-run")
-            chrome_options.add_argument("--no-default-browser-check")
-            chrome_options.add_argument("--disable-logging")
-            chrome_options.add_argument("--disable-gpu-logging")
-            chrome_options.add_argument("--silent")
-            
-            # Make cursor visible and add visual indicators
-            chrome_options.add_argument("--disable-extensions-except")
-            chrome_options.add_argument("--disable-plugins-discovery")
-            chrome_options.add_argument("--disable-default-apps")
-            
-            if os.getenv('BROWSER_HEADLESS', 'false').lower() == 'true':
-                chrome_options.add_argument("--headless")
-            
-            service = Service(ChromeDriverManager().install())
-            self.driver = webdriver.Chrome(service=service, options=chrome_options)
-            self.driver.execute_script("Object.defineProperty(navigator, 'webdriver', {get: () => undefined})")
-            
-            # Set window size and position for better visibility
+            # Set window size for better visibility
             width = int(os.getenv('BROWSER_WINDOW_WIDTH', 1920))
             height = int(os.getenv('BROWSER_WINDOW_HEIGHT', 1080))
             self.driver.set_window_size(width, height)
-            self.driver.set_window_position(0, 0)  # Position at top-left for visibility
             
             # Set timeouts - increase for better stability
             timeout = int(os.getenv('BROWSER_TIMEOUT', 30))
             self.driver.set_page_load_timeout(timeout)
             self.driver.implicitly_wait(10)
-            
-            # Set script timeout for long-running operations
             self.driver.set_script_timeout(30)
+            
+            self.logger.info("✅ Undetected Chrome browser initialized successfully")
             
             # Add visual cursor indicator
             self.add_cursor_indicator()
@@ -175,7 +250,7 @@ class GoogleAdsCUAAutomation:
             
             return True
         except Exception as e:
-            self.logger.error(f"Failed to setup browser: {e}")
+            self.logger.error(f"Failed to setup undetected browser: {e}")
             return False
     
     def add_cursor_indicator(self):
@@ -434,50 +509,86 @@ class GoogleAdsCUAAutomation:
             raise
     
     def login_to_google_ads(self):
-        """Login to Google Ads dashboard"""
+        """Login to Google Ads using undetected-chromedriver for enhanced anti-detection"""
         try:
-            self.logger.info("Starting Google Ads login process...")
-            self.logger.info("Please login to your Google Ads account in the browser window")
-            self.logger.info("DO NOT CLOSE THE BROWSER WINDOW MANUALLY")
+            self.logger.info("Starting Google Ads authentication with undetected-chromedriver...")
+            self.update_progress("Accessing Google Ads", "In Progress")
             
-            self.driver.get("https://ads.google.com")
-            
+            # Navigate directly to Google Ads
             try:
-                # Wait for login with better error handling
-                WebDriverWait(self.driver, 300).until(
-                    lambda driver: any([
-                        "ads.google.com/aw" in driver.current_url,
-                        "ads.google.com/home" in driver.current_url,
-                        "ads.google.com/nav" in driver.current_url,
-                        "ads.google.com/my-account" in driver.current_url
-                    ])
-                )
-                self.logger.info("✅ Successfully logged into Google Ads")
-                return True
-            except TimeoutException:
-                self.logger.error("❌ Login timeout - please try again")
-                return False
-            except Exception as e:
-                self.logger.error(f"❌ Login error: {e}")
-                # Try to check if we're actually logged in anyway
-                try:
-                    current_url = self.driver.current_url
-                    if any(domain in current_url for domain in ["ads.google.com", "google.com"]):
-                        self.logger.info("🔄 Detected Google domain, checking login status...")
-                        # Add a small delay and recheck
-                        time.sleep(5)
-                        current_url = self.driver.current_url
-                        if "ads.google.com" in current_url:
-                            self.logger.info("✅ Login appears successful despite error")
-                            return True
-                except:
-                    pass
+                self.logger.info("🌐 Navigating to Google Ads web interface...")
+                self.driver.get("https://ads.google.com")
+                
+                # Wait for page to load
+                time.sleep(5)
+                
+                # Check if we're on a login page
+                current_url = self.driver.current_url
+                if "accounts.google.com" in current_url or "signin" in current_url:
+                    self.logger.info("🔑 Login page detected")
+                    self.update_progress("Manual login required", "Waiting")
+                    
+                    # Look for email input field
+                    try:
+                        email_field = WebDriverWait(self.driver, 10).until(
+                            EC.presence_of_element_located((By.XPATH, "//input[@type='email']"))
+                        )
+                        
+                        # Check if there's a saved email from environment variable
+                        google_email = os.getenv('GOOGLE_ADS_EMAIL')
+                        if google_email:
+                            self.logger.info(f"Using email from environment: {google_email[:3]}...{google_email[-4:]}")
+                            email_field.send_keys(google_email)
+                            
+                            # Look for Next button
+                            try:
+                                next_button = WebDriverWait(self.driver, 5).until(
+                                    EC.element_to_be_clickable((By.XPATH, "//button[contains(., 'Next') or contains(@id, 'next')]"))
+                                )
+                                self.click_with_visibility(next_button, "Next button")
+                            except:
+                                self.logger.info("Could not find Next button automatically")
+                    except:
+                        self.logger.info("Could not find email field automatically")
+                    
+                    self.logger.info("⚠️ Manual login required in browser")
+                    self.logger.info("Please complete the login process in the browser window")
+                    
+                    # Wait for manual login to complete
+                    self.logger.info("Waiting for login to complete (up to 5 minutes)...")
+                    WebDriverWait(self.driver, 300).until(
+                        lambda driver: any([
+                            "ads.google.com/aw" in driver.current_url,
+                            "ads.google.com/home" in driver.current_url,
+                            "ads.google.com/nav" in driver.current_url
+                        ])
+                    )
+                    
+                    self.logger.info("✅ Login completed successfully")
+                    self.update_progress("Login successful", "Success")
+                else:
+                    self.logger.info("✅ Already logged in or no login required")
+                    self.update_progress("Already logged in", "Success")
+                
+                # Check if we're on the Google Ads dashboard
+                current_url = self.driver.current_url
+                if any([
+                    "ads.google.com/aw" in current_url,
+                    "ads.google.com/home" in current_url,
+                    "ads.google.com/nav" in current_url
+                ]):
+                    self.logger.info("✅ Successfully accessed Google Ads dashboard")
+                    return True
+                else:
+                    self.logger.warning(f"⚠️ Unexpected URL after login: {current_url}")
+                    return False
+                
+            except Exception as nav_error:
+                self.logger.error(f"Navigation error: {nav_error}")
                 return False
             
         except Exception as e:
             self.logger.error(f"Login failed: {e}")
-            if "no such window" in str(e) or "target window already closed" in str(e):
-                self.logger.error("Browser window was closed manually. Please do not close the browser during automation.")
             return False
     
     def navigate_to_campaign(self, campaign_name):
@@ -864,71 +975,167 @@ class GoogleAdsCUAAutomation:
             return False
     
     async def run_automation(self, command=None, description=None):
-        """Run the automation workflow"""
+        """Run the automation workflow with undetected-chromedriver"""
         try:
-            self.update_progress("Processing command with browser agent", "Initializing")
-            self.logger.info("🤖 Starting browser agent automation")
+            self.update_progress("Processing command", "Initializing")
+            self.logger.info("🤖 Starting automation")
             
-            # Use the browser agent to process the command
-            result = await self.browser_agent.process_request(command)
+            # Check if we can use the browser agent (requires OpenAI)
+            use_browser_agent = False
+            try:
+                # Import browser agent
+                from cua_browser_agent import BrowserAgent
+                
+                # Check if OpenAI is configured
+                if self.openai_client is not None:
+                    use_browser_agent = True
+                    self.logger.info("Using browser agent for command processing")
+                    browser_agent = BrowserAgent()
+                    
+                    # Use the browser agent to process the command
+                    result = await browser_agent.process_request(command)
+                    
+                    if result["type"] == "error":
+                        self.logger.error(f"Browser agent error: {result['content']}")
+                        use_browser_agent = False
+                    else:
+                        self.logger.info(f"✅ Browser agent response: {json.dumps(result, indent=2)}")
+                else:
+                    self.logger.warning("⚠️ OpenAI client not available - skipping browser agent")
+                    use_browser_agent = False
+            except Exception as agent_error:
+                self.logger.error(f"Browser agent error: {agent_error}")
+                use_browser_agent = False
             
-            if result["type"] == "error":
-                self.logger.error(f"Browser agent error: {result['content']}")
+            # Setup undetected-chromedriver for website interactions
+            self.update_progress("Setting up undetected browser", "Initializing")
+            if not self.setup_browser():
+                self.logger.error("Failed to setup undetected browser")
                 return False
-                
-            self.logger.info(f"✅ Browser agent response: {json.dumps(result, indent=2)}")
             
-            # If we need to use Selenium for specific Google Ads actions
-            if "google ads" in command.lower():
-                self.update_progress("Setting up Selenium browser", "Initializing")
-                if not self.setup_browser():
-                    self.logger.error("Failed to setup browser")
-                    return False
-                
+            # Parse the command for direct browser automation
+            self.update_progress("Analyzing command", "Processing")
+            
+            # Extract target URL if present in command
+            target_url = None
+            import re
+            url_patterns = [
+                r'(?:navigate|go|visit|open|browse)(?:\s+to)?\s+(https?://[^\s]+)',
+                r'(https?://[^\s]+)',
+                r'(?:navigate|go|visit|open|browse)(?:\s+to)?\s+([a-zA-Z0-9.-]+\.[a-zA-Z]{2,}(?:/\S*)?)'
+            ]
+            
+            for pattern in url_patterns:
+                match = re.search(pattern, command, re.IGNORECASE)
+                if match:
+                    target_url = match.group(1).strip()
+                    if not target_url.startswith('http'):
+                        target_url = 'https://' + target_url
+                    break
+            
+            # Google Ads specific handling
+            is_google_ads = "google ads" in command.lower() or "ads.google" in command.lower()
+            if is_google_ads or target_url and "ads.google" in target_url:
                 self.update_progress("Logging into Google Ads", "In Progress")
                 if not self.login_to_google_ads():
                     self.logger.error("Failed to login to Google Ads")
                     return False
-            
-            # Check if 3-month analysis is requested
-            if description and '3 months' in description.lower():
-                self.update_progress("Setting 3-month date range", "In Progress")
-                self.set_date_range(3)
-            
-            if command and 'audit' in command.lower():
-                self.update_progress("Analyzing command", "Processing")
-                campaign_name = None
-                import re
-                patterns = [
-                    r'named\s+([^,\.]+)',
-                    r'for\s+([^,\.]+)',
-                    r'on\s+([^,\.]+)',
-                    r'campaign\s+([^,\.]+)',
-                    r'the\s+([^,\.]+)\s+campaign',
-                    r'my\s+([^,\.]+)\s+campaign'
-                ]
                 
-                for pattern in patterns:
-                    match = re.search(pattern, command, re.IGNORECASE)
-                    if match:
-                        campaign_name = match.group(1).strip()
-                        campaign_name = re.sub(r'^(the|my)\s+', '', campaign_name, flags=re.IGNORECASE)
-                        break
-                
-                if campaign_name:
-                    self.logger.info(f"🎯 Target campaign identified: {campaign_name}")
-                    self.update_progress(f"Navigating to campaign: {campaign_name}", "In Progress")
-                    if self.navigate_to_campaign(campaign_name):
-                        self.update_progress("Performing campaign audit", "In Progress")
-                        self.perform_campaign_audit(campaign_name)
+                # If we're already on Google Ads, we can continue with campaign analysis
+                if command and 'audit' in command.lower():
+                    self.update_progress("Analyzing campaign command", "Processing")
+                    campaign_name = None
+                    campaign_patterns = [
+                        r'named\s+([^,\.]+)',
+                        r'for\s+([^,\.]+)',
+                        r'on\s+([^,\.]+)',
+                        r'campaign\s+([^,\.]+)',
+                        r'the\s+([^,\.]+)\s+campaign',
+                        r'my\s+([^,\.]+)\s+campaign'
+                    ]
+                    
+                    for pattern in campaign_patterns:
+                        match = re.search(pattern, command, re.IGNORECASE)
+                        if match:
+                            campaign_name = match.group(1).strip()
+                            campaign_name = re.sub(r'^(the|my)\s+', '', campaign_name, flags=re.IGNORECASE)
+                            break
+                    
+                    if campaign_name:
+                        self.logger.info(f"🎯 Target campaign identified: {campaign_name}")
+                        self.update_progress(f"Navigating to campaign: {campaign_name}", "In Progress")
+                        if self.navigate_to_campaign(campaign_name):
+                            self.update_progress("Performing campaign audit", "In Progress")
+                            self.perform_campaign_audit(campaign_name)
+                        else:
+                            self.logger.error(f"Could not navigate to campaign: {campaign_name}")
                     else:
-                        self.logger.error(f"Could not navigate to campaign: {campaign_name}")
+                        self.logger.info("ℹ️ No specific campaign identified")
+                        self.update_progress("Navigating to campaigns overview", "In Progress")
+                        if self.navigate_to_campaigns_overview():
+                            self.update_progress("Performing general audit", "In Progress")
+                            self.perform_campaign_audit()
+            
+            # Handle direct URL navigation
+            elif target_url:
+                self.logger.info(f"🌐 Navigating to URL: {target_url}")
+                self.update_progress(f"Navigating to {target_url}", "In Progress")
+                try:
+                    self.driver.get(target_url)
+                    self.logger.info(f"✅ Successfully navigated to {target_url}")
+                    
+                    # Check if 3-month analysis is requested
+                    if description and '3 months' in description.lower():
+                        self.update_progress("Setting 3-month date range", "In Progress")
+                        self.set_date_range(3)
+                    
+                    # Wait for page to load and extract content
+                    time.sleep(5)
+                    self.update_progress("Extracting page content", "In Progress")
+                    try:
+                        page_title = self.driver.title
+                        self.logger.info(f"📄 Page title: {page_title}")
+                        
+                        # Take screenshot
+                        self.driver.save_screenshot("page_screenshot.png")
+                        self.logger.info("📸 Screenshot saved")
+                    except Exception as extract_error:
+                        self.logger.error(f"Error extracting content: {extract_error}")
+                except Exception as nav_error:
+                    self.logger.error(f"Error navigating to URL: {nav_error}")
+                    return False
+            
+            # Generic command without URL - try to interpret
+            else:
+                self.logger.info("ℹ️ No specific URL found in command")
+                self.update_progress("Processing generic command", "In Progress")
+                
+                # Check if we should navigate to Google Ads
+                if "campaign" in command.lower() or "ads" in command.lower():
+                    self.logger.info("🎯 Detected ads-related command")
+                    self.update_progress("Navigating to Google Ads", "In Progress")
+                    try:
+                        self.driver.get("https://ads.google.com")
+                        time.sleep(5)
+                        
+                        # Check if we need manual login
+                        current_url = self.driver.current_url
+                        if "accounts.google.com" in current_url or "signin" in current_url:
+                            self.update_progress("Manual login required", "Waiting")
+                            self.logger.info("⚠️ Manual login required in browser")
+                            self.logger.info("Please complete the login process in the browser window")
+                    except Exception as e:
+                        self.logger.error(f"Error navigating to Google Ads: {e}")
                 else:
-                    self.logger.info("ℹ️ No specific campaign identified")
-                    self.update_progress("Navigating to campaigns overview", "In Progress")
-                    if self.navigate_to_campaigns_overview():
-                        self.update_progress("Performing general audit", "In Progress")
-                        self.perform_campaign_audit()
+                    # Use DuckDuckGo for search
+                    search_query = command.replace("search", "").replace("for", "").strip()
+                    self.logger.info(f"🔍 Searching with DuckDuckGo: {search_query}")
+                    self.update_progress(f"Searching for: {search_query}", "In Progress")
+                    try:
+                        self.driver.get(f"https://duckduckgo.com/?q={search_query}")
+                        time.sleep(3)
+                    except Exception as search_error:
+                        self.logger.error(f"Error performing search: {search_error}")
             
             self.update_progress("Automation completed", "Success")
             return True

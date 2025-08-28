@@ -27,6 +27,9 @@ model User {
   cuaCommands  CUACommand[]
   cuaUserAccess CUAUserAccess[]
   cuaAudits    CUAAudit[]
+  crmIntegrations CRMIntegration[]
+  accountAlerts AccountAlert[]
+  budgetRules  BudgetRule[]
   
   @@map("users")
 }
@@ -75,6 +78,8 @@ model Campaign {
   adGroups    AdGroup[]
   analytics   Analytics[]
   aiRecommendations AIRecommendation[]
+  leads       Lead[]
+  keywords    Keyword[]
   
   @@map("campaigns")
 }
@@ -99,6 +104,8 @@ model AdGroup {
   // Relations
   campaign    Campaign @relation(fields: [campaignId], references: [id], onDelete: Cascade)
   ads        Ad[]
+  leads      Lead[]
+  keywords   Keyword[]
   
   @@map("ad_groups")
 }
@@ -127,6 +134,7 @@ model Ad {
   
   // Relations
   adGroup     AdGroup @relation(fields: [adGroupId], references: [id], onDelete: Cascade)
+  leads       Lead[]
   
   @@map("ads")
 }
@@ -295,4 +303,293 @@ model CUAAudit {
   
   @@map("cua_audits")
 }
+
+// CRM Integration Models
+model CRMIntegration {
+  id            String   @id @default(cuid())
+  name          String   // CRM name (Salesforce, HubSpot, etc.)
+  type          CRMType
+  apiKey        String?  @map("api_key")
+  apiSecret     String?  @map("api_secret")
+  accessToken   String?  @map("access_token")
+  refreshToken  String?  @map("refresh_token")
+  instanceUrl   String?  @map("instance_url")
+  isActive      Boolean  @default(true)
+  lastSyncAt    DateTime? @map("last_sync_at")
+  userId        String   @map("user_id")
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+  
+  // Relations
+  user          User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  leads         Lead[]
+  
+  @@map("crm_integrations")
+}
+
+enum CRMType {
+  SALESFORCE
+  HUBSPOT
+  PIPEDRIVE
+  ZOHO
+  CUSTOM
+}
+
+// Lead Management
+model Lead {
+  id                String   @id @default(cuid())
+  crmLeadId         String?  @map("crm_lead_id") // Original CRM ID
+  email             String?
+  phone             String?
+  firstName         String?  @map("first_name")
+  lastName          String?  @map("last_name")
+  company           String?
+  jobTitle          String?  @map("job_title")
+  leadSource        String?  @map("lead_source")
+  leadScore         Float?   @map("lead_score") // CRM lead score
+  
+  // Campaign Attribution
+  campaignId        String?  @map("campaign_id")
+  adGroupId         String?  @map("ad_group_id")
+  adId              String?  @map("ad_id")
+  keyword           String?  // Keyword that generated the lead
+  landingPage       String?  @map("landing_page")
+  utmSource         String?  @map("utm_source")
+  utmMedium         String?  @map("utm_medium")
+  utmCampaign       String?  @map("utm_campaign")
+  utmTerm           String?  @map("utm_term")
+  utmContent        String?  @map("utm_content")
+  gclid             String?  // Google Click ID
+  
+  // Lead Quality & Performance
+  qualityScore      Float?   @map("quality_score") // ML-generated quality score (0-1)
+  conversionValue   Float?   @map("conversion_value")
+  conversionType    String?  @map("conversion_type")
+  leadStage         LeadStage @default(NEW)
+  isQualified       Boolean? @map("is_qualified")
+  
+  // Timestamps
+  firstTouchAt      DateTime? @map("first_touch_at")
+  lastTouchAt       DateTime? @map("last_touch_at")
+  convertedAt       DateTime? @map("converted_at")
+  qualifiedAt       DateTime? @map("qualified_at")
+  createdAt         DateTime @default(now())
+  updatedAt         DateTime @updatedAt
+  
+  // Relations
+  campaign          Campaign? @relation(fields: [campaignId], references: [id], onDelete: SetNull)
+  adGroup           AdGroup?  @relation(fields: [adGroupId], references: [id], onDelete: SetNull)
+  ad                Ad?       @relation(fields: [adId], references: [id], onDelete: SetNull)
+  crmIntegration    CRMIntegration? @relation(fields: [crmIntegrationId], references: [id], onDelete: SetNull)
+  crmIntegrationId  String?   @map("crm_integration_id")
+  leadActivities    LeadActivity[]
+  qualityPredictions MLPrediction[]
+  
+  @@map("leads")
+}
+
+enum LeadStage {
+  NEW
+  CONTACTED
+  QUALIFIED
+  OPPORTUNITY
+  CUSTOMER
+  LOST
+}
+
+// Lead Activity Tracking
+model LeadActivity {
+  id          String   @id @default(cuid())
+  leadId      String   @map("lead_id")
+  activityType ActivityType @map("activity_type")
+  description String?
+  metadata    Json?    // Additional activity data
+  timestamp   DateTime
+  createdAt   DateTime @default(now())
+  
+  // Relations
+  lead        Lead     @relation(fields: [leadId], references: [id], onDelete: Cascade)
+  
+  @@map("lead_activities")
+}
+
+enum ActivityType {
+  FORM_SUBMISSION
+  PHONE_CALL
+  EMAIL_SENT
+  EMAIL_OPENED
+  EMAIL_CLICKED
+  WEBSITE_VISIT
+  DEMO_REQUEST
+  MEETING_SCHEDULED
+  PROPOSAL_SENT
+  DEAL_CLOSED
+}
+
+// ML Models and Predictions
+model MLModel {
+  id          String   @id @default(cuid())
+  name        String
+  type        MLModelType
+  version     String
+  filePath    String?  @map("file_path")
+  accuracy    Float?
+  isActive    Boolean  @default(false)
+  metadata    Json?    // Model parameters, features, etc.
+  trainedAt   DateTime? @map("trained_at")
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+  
+  // Relations
+  predictions MLPrediction[]
+  
+  @@map("ml_models")
+}
+
+enum MLModelType {
+  LEAD_QUALITY_SCORING
+  CONVERSION_PREDICTION
+  BUDGET_OPTIMIZATION
+  BID_OPTIMIZATION
+  KEYWORD_PERFORMANCE
+  AD_PERFORMANCE
+}
+
+model MLPrediction {
+  id          String   @id @default(cuid())
+  modelId     String   @map("model_id")
+  entityType  String   @map("entity_type") // 'lead', 'campaign', 'keyword', etc.
+  entityId    String   @map("entity_id")
+  prediction  Float    // Predicted value/score
+  confidence  Float?   // Confidence score (0-1)
+  features    Json?    // Input features used for prediction
+  createdAt   DateTime @default(now())
+  
+  // Relations
+  model       MLModel  @relation(fields: [modelId], references: [id], onDelete: Cascade)
+  lead        Lead?    @relation(fields: [entityId], references: [id], onDelete: Cascade)
+  
+  @@map("ml_predictions")
+}
+
+// Keyword Management
+model Keyword {
+  id               String   @id @default(cuid())
+  text             String
+  matchType        MatchType @map("match_type")
+  campaignId       String?   @map("campaign_id")
+  adGroupId        String?   @map("ad_group_id")
+  status           KeywordStatus @default(ACTIVE)
+  maxCpc           Float?    @map("max_cpc") // Max cost per click bid
+  qualityScore     Int?      @map("quality_score") // Google Ads quality score (1-10)
+  
+  // Performance metrics
+  impressions      Int       @default(0)
+  clicks           Int       @default(0)
+  cost             Float     @default(0)
+  conversions      Int       @default(0)
+  conversionValue  Float     @default(0) @map("conversion_value")
+  
+  // ML insights
+  performanceScore Float?    @map("performance_score") // ML-generated performance score
+  isNegative       Boolean   @default(false) @map("is_negative")
+  
+  createdAt        DateTime  @default(now())
+  updatedAt        DateTime  @updatedAt
+  
+  // Relations
+  campaign         Campaign? @relation(fields: [campaignId], references: [id], onDelete: SetNull)
+  adGroup          AdGroup?  @relation(fields: [adGroupId], references: [id], onDelete: SetNull)
+  
+  @@map("keywords")
+}
+
+enum MatchType {
+  EXACT
+  PHRASE
+  BROAD
+  BROAD_MODIFIED
+}
+
+enum KeywordStatus {
+  ACTIVE
+  PAUSED
+  REMOVED
+}
+
+// Account Management
+model AccountAlert {
+  id          String      @id @default(cuid())
+  type        AlertType
+  severity    AlertSeverity
+  title       String
+  message     String
+  metadata    Json?       // Additional alert data
+  isResolved  Boolean     @default(false) @map("is_resolved")
+  resolvedAt  DateTime?   @map("resolved_at")
+  userId      String      @map("user_id")
+  createdAt   DateTime    @default(now())
+  
+  // Relations
+  user        User        @relation(fields: [userId], references: [id], onDelete: Cascade)
+  
+  @@map("account_alerts")
+}
+
+enum AlertType {
+  BILLING_ISSUE
+  SPEND_LIMIT_REACHED
+  PERFORMANCE_DROP
+  QUALITY_SCORE_DROP
+  ACCOUNT_SUSPENDED
+  API_ERROR
+  CRM_SYNC_FAILED
+}
+
+enum AlertSeverity {
+  INFO
+  WARNING
+  ERROR
+  CRITICAL
+}
+
+// Budget Management
+model BudgetRule {
+  id          String   @id @default(cuid())
+  name        String
+  type        BudgetRuleType @map("rule_type")
+  condition   Json     // Rule conditions (spend thresholds, performance metrics, etc.)
+  action      Json     // Actions to take (pause campaigns, adjust budgets, etc.)
+  isActive    Boolean  @default(true) @map("is_active")
+  userId      String   @map("user_id")
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+  
+  // Relations
+  user        User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  
+  @@map("budget_rules")
+}
+
+enum BudgetRuleType {
+  DAILY_SPEND_LIMIT
+  COST_PER_LEAD_LIMIT
+  ROAS_THRESHOLD
+  PERFORMANCE_BASED
+}
+
+// Search Cache for server-side search API
+model SearchCache {
+  id          String   @id @default(cuid())
+  cacheKey    String   @unique // Unique key for the search query
+  query       String   // Original search query
+  siteRestrict String?  // Site restriction if any
+  results     Json     // Cached search results
+  provider    String   // Search API provider used
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+  
+  @@map("search_cache")
+}
+
 

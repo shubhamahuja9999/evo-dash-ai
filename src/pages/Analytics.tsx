@@ -50,6 +50,7 @@ const Analytics = () => {
   const [showAutomation, setShowAutomation] = useState(false);
   const [automationType, setAutomationType] = useState<'cua' | 'campaign-fetch'>('cua');
   const [isAutomationMinimized, setIsAutomationMinimized] = useState(false);
+  const [showAgenticBrowser, setShowAgenticBrowser] = useState(false);
 
   // Date range management
   const {
@@ -153,27 +154,27 @@ const Analytics = () => {
         {/* Date Range Picker and Refresh */}
         <div className="flex flex-col lg:flex-row lg:items-center gap-4">
           <div className="flex items-center gap-2">
-            <DateRangePicker
-              value={customRange}
-              onChange={setCustomRange}
-              onPresetChange={setPreset}
-              currentPreset={preset}
-              comparisonEnabled={comparisonEnabled}
-              onComparisonToggle={setComparisonEnabled}
-              className="lg:w-auto"
-            />
-            <Button
-              variant="outline"
-              size="icon"
-              onClick={() => refreshCampaigns()}
-              disabled={isRefreshing}
-              className="relative"
-            >
-              <RefreshCw className={cn(
-                "h-4 w-4",
-                isRefreshing && "animate-spin"
-              )} />
-            </Button>
+                         <DateRangePicker />
+                         <Button
+               variant="outline"
+               size="icon"
+               onClick={() => refreshCampaigns()}
+               disabled={isRefreshing}
+               className="relative"
+             >
+               <RefreshCw className={cn(
+                 "h-4 w-4",
+                 isRefreshing && "animate-spin"
+               )} />
+             </Button>
+             <Button
+               variant="default"
+               onClick={() => setShowAgenticBrowser(true)}
+               className="bg-gradient-to-r from-purple-600 to-blue-600 hover:from-purple-700 hover:to-blue-700"
+             >
+               <Target className="h-4 w-4 mr-2" />
+               Agentic Browser
+             </Button>
           </div>
           {lastFetchTime?.lastFetchTime && (
             <div className="text-sm text-muted-foreground">
@@ -191,46 +192,46 @@ const Analytics = () => {
           value={analyticsStats?.totalUsers || "0"}
           change={comparisonEnabled && comparison?.totalUsers 
             ? formatComparison(comparison.totalUsers) 
-            : "+12.5% from last month"
+            : "+12.5% from last month" as string
           }
           trend={comparisonEnabled && comparison?.totalUsers 
             ? (comparison.totalUsers >= 0 ? "up" : "down")
             : "up"
           }
-          icon={Users}
+          icon={<Users className="h-4 w-4 text-muted-foreground" />}
         />
         <StatCard
           title="Revenue"
           value={analyticsStats?.revenue || "₹0"}
           change={comparisonEnabled && comparison?.revenue 
             ? formatComparison(comparison.revenue)
-            : "+8.2% from last month"
+            : "+8.2% from last month" as string
           }
           trend={comparisonEnabled && comparison?.revenue 
             ? (comparison.revenue >= 0 ? "up" : "down")
             : "up"
           }
-          icon={DollarSign}
+          icon={<DollarSign className="h-4 w-4 text-muted-foreground" />}
         />
         <StatCard
           title="Conversion Rate"
           value={analyticsStats?.conversionRate || "0%"}
           change={comparisonEnabled && comparison?.conversionRate 
             ? formatComparison(comparison.conversionRate)
-            : "+0.8% from last month"
+            : "+0.8% from last month" as string
           }
           trend={comparisonEnabled && comparison?.conversionRate 
             ? (comparison.conversionRate >= 0 ? "up" : "down")
             : "up"
           }
-          icon={TrendingUp}
+          icon={<TrendingUp className="h-4 w-4 text-muted-foreground" />}
         />
         <StatCard
           title="AI Score"
           value={analyticsStats?.aiScore || "0"}
-          change="+2.1 from last week"
+          change={"+2.1 from last week" as string}
           trend="up"
-          icon={Target}
+          icon={<Target className="h-4 w-4 text-muted-foreground" />}
         />
       </div>
 
@@ -381,15 +382,25 @@ const Analytics = () => {
       {/* API Tester for Date Ranges */}
       <DateRangeTester />
 
-      {/* Embedded Automation Window */}
-      <EmbeddedAutomation
-        isOpen={showAutomation}
-        onClose={() => setShowAutomation(false)}
-        onMinimize={() => setIsAutomationMinimized(!isAutomationMinimized)}
-        isMinimized={isAutomationMinimized}
-        automationType={automationType}
-        title={automationType === 'cua' ? 'Google Ads CUA Automation' : 'Campaign Data Fetch'}
-      />
+             {/* Embedded Automation Window */}
+       <EmbeddedAutomation
+         isOpen={showAutomation}
+         onClose={() => setShowAutomation(false)}
+         onMinimize={() => setIsAutomationMinimized(!isAutomationMinimized)}
+         isMinimized={isAutomationMinimized}
+         automationType={automationType}
+         title={automationType === 'cua' ? 'Google Ads CUA Automation' : 'Campaign Data Fetch'}
+       />
+
+       {/* Agentic Browser Window */}
+       <EmbeddedAutomation
+         isOpen={showAgenticBrowser}
+         onClose={() => setShowAgenticBrowser(false)}
+         onMinimize={() => setIsAutomationMinimized(!isAutomationMinimized)}
+         isMinimized={isAutomationMinimized}
+         automationType="agentic"
+         title="AI Agentic Browser"
+       />
     </div>
   );
 };

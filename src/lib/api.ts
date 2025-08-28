@@ -14,13 +14,17 @@ const calculatePercentageChange = (current: number, previous: number): number =>
   return ((current - previous) / previous) * 100
 }
 
+// Helper function to format date for API
+const formatDateForAPI = (date: Date): string => {
+  return date.toISOString();
+}
+
 // Helper function to build query string
 const buildQueryString = (params: DateRangeParams): string => {
   const searchParams = new URLSearchParams()
   
-  if (params.startDate) searchParams.append('startDate', params.startDate)
-  if (params.endDate) searchParams.append('endDate', params.endDate)
-  if (params.dateRange) searchParams.append('dateRange', params.dateRange)
+  if (params.startDate) searchParams.append('startDate', formatDateForAPI(new Date(params.startDate)))
+  if (params.endDate) searchParams.append('endDate', formatDateForAPI(new Date(params.endDate)))
   
   const queryString = searchParams.toString()
   return queryString ? `?${queryString}` : ''
@@ -85,7 +89,67 @@ export const analyticsApi = {
 // Campaigns API
 export const campaignsApi = {
   getCampaigns: async (dateParams?: DateRangeParams) => {
-    const queryString = dateParams ? buildQueryString(dateParams) : ''
+    // If dateRange is provided, convert it to start/end dates
+    let queryParams = { ...dateParams };
+    if (dateParams?.dateRange) {
+      const now = new Date();
+      const today = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+      
+      switch (dateParams.dateRange) {
+        case 'today':
+          queryParams = {
+            startDate: today.toISOString().split('T')[0],
+            endDate: today.toISOString().split('T')[0],
+          };
+          break;
+        case 'yesterday': {
+          const yesterday = new Date(today);
+          yesterday.setDate(yesterday.getDate() - 1);
+          queryParams = {
+            startDate: yesterday.toISOString().split('T')[0],
+            endDate: yesterday.toISOString().split('T')[0],
+          };
+          break;
+        }
+        case 'last_7_days': {
+          const last7Days = new Date(today);
+          last7Days.setDate(last7Days.getDate() - 7);
+          queryParams = {
+            startDate: last7Days.toISOString().split('T')[0],
+            endDate: today.toISOString().split('T')[0],
+          };
+          break;
+        }
+        case 'last_30_days': {
+          const last30Days = new Date(today);
+          last30Days.setDate(last30Days.getDate() - 30);
+          queryParams = {
+            startDate: last30Days.toISOString().split('T')[0],
+            endDate: today.toISOString().split('T')[0],
+          };
+          break;
+        }
+        case 'this_month': {
+          const startOfMonth = new Date(now.getFullYear(), now.getMonth(), 1);
+          queryParams = {
+            startDate: startOfMonth.toISOString().split('T')[0],
+            endDate: today.toISOString().split('T')[0],
+          };
+          break;
+        }
+        case 'last_month': {
+          const startOfLastMonth = new Date(now.getFullYear(), now.getMonth() - 1, 1);
+          const endOfLastMonth = new Date(now.getFullYear(), now.getMonth(), 0);
+          queryParams = {
+            startDate: startOfLastMonth.toISOString().split('T')[0],
+            endDate: endOfLastMonth.toISOString().split('T')[0],
+          };
+          break;
+        }
+      }
+    }
+
+    const queryString = buildQueryString(queryParams);
     const response = await fetch(`${API_BASE_URL}/api/campaigns${queryString}`);
     if (!response.ok) {
       throw new Error('Failed to fetch campaigns');

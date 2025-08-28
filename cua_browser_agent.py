@@ -4,9 +4,16 @@ from openai import OpenAI
 import json
 import re
 import random
+import os
+import aiohttp
+from urllib.parse import quote
 
 # Initialize OpenAI
 client = OpenAI()
+
+# API endpoint configuration
+SERVER_BASE_URL = os.environ.get('SERVER_BASE_URL', 'http://localhost:3001')
+SEARCH_API_URL = f"{SERVER_BASE_URL}/api/search"
 
 # ---- SYSTEM PROMPT (CUA Agent) ----
 CUA_SYSTEM_PROMPT = """
@@ -15,13 +22,23 @@ You are a Computer Using Agent (CUA) with two modes:
 1. Normal Mode: Answer directly with reasoning.
 2. Browser Mode: If the task requires live data or navigating the web, follow this loop:
 
-   a. search(query) → form best search query
-   b. open_url(url) → choose relevant result
-   c. extract(content) → retrieve needed info
+   a. search(query) → form best search query to find information
+   b. open_url(url) → choose relevant result to explore
+   c. extract(content) → retrieve needed info from the page
    d. repeat if necessary
    e. summarize results for the user with sources
 
-Available browser actions: search(query), open_url(url), click(text), scroll(direction), extract(content).
+Available browser actions:
+- search(query): Search the web using our server-side search API
+- open_url(url): Navigate to a specific URL
+- click(text or selector): Click on an element
+- scroll(direction): Scroll the page
+- extract(selector): Extract content from the page
+
+For search actions, you can add these optional parameters:
+- maxResults: Number of results to return (default: 10)
+- siteRestrict: Limit search to a specific domain (e.g., "example.com")
+- freshness: Limit to recent content ("day", "week", "month", "year")
 
 Always explain what action you're taking before executing it.
 Do not fabricate sources.
@@ -57,33 +74,32 @@ class BrowserAgent:
         try:
             if action_type == "search":
                 query = params["query"]
-                print(f"\n🔍 Searching for: {query}")
-                await page.goto(f"https://www.google.com/search?q={query}")
+                print(f"\n🔍 Searching with DuckDuckGo: {query}")
+                
+                # Use DuckDuckGo directly
+                await page.goto(f"https://duckduckgo.com/?q={quote(query)}")
                 self.current_url = page.url
                 
-                # Extract search results
-                results = await page.evaluate("""() => {
-                    const results = [];
-                    document.querySelectorAll('div.g').forEach(el => {
-                        const title = el.querySelector('h3')?.textContent;
-                        const link = el.querySelector('a')?.href;
-                        const snippet = el.querySelector('div.VwiC3b')?.textContent;
-                        if (title && link) {
-                            results.push({ title, link, snippet });
-                        }
-                    });
-                    return results;
-                }""")
-                
                 return {
-                    "type": "search_results",
-                    "url": self.current_url,
-                    "results": results[:5]  # Top 5 results
+                    "type": "search_completed",
+                    "query": query,
+                    "url": page.url
                 }
 
             elif action_type == "open_url":
                 url = params["url"]
                 print(f"\n🌐 Opening URL: {url}")
+                
+                # Check if it's a Google Ads URL
+                if "ads.google.com" in url:
+                    print("⚠️ Google Ads detected")
+                    return {
+                        "type": "error",
+                        "action": "open_url",
+                        "error": "Google Ads requires authentication",
+                        "url": url
+                    }
+                
                 await page.goto(url)
                 self.current_url = page.url
                 return {
@@ -160,7 +176,7 @@ class BrowserAgent:
 
             # Browser Mode - Execute actions
             async with async_playwright() as p:
-                # Launch browser with specific options to avoid 403
+                # Launch browser with specific options
                 browser = await p.chromium.launch(
                     headless=False,
                     args=[
@@ -171,11 +187,14 @@ class BrowserAgent:
                         '--user-agent=Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/122.0.0.0 Safari/537.36'
                     ]
                 )
-                # Configure the page to avoid detection
+                
+                # Configure the context
                 context = await browser.new_context(
                     viewport={'width': 1920, 'height': 1080},
                     user_agent='Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/122.0.0.0 Safari/537.36'
                 )
+                
+                # Create a new page
                 page = await context.new_page()
                 
                 # Add scripts to mask automation
@@ -192,6 +211,12 @@ class BrowserAgent:
                 for action in decision["actions"]:
                     result = await self.execute_action(page, action)
                     results.append(result)
+                    
+                    # If we launched an external browser for Google Ads, wait for it
+                    if result.get("type") == "external_browser":
+                        print("⏳ Waiting for external browser to complete...")
+                        await asyncio.sleep(5)  # Give time for the external browser
+                        break
                     
                     # After each action, ask GPT to analyze and decide next steps
                     analysis = client.chat.completions.create(

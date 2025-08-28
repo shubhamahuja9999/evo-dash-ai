@@ -1,157 +1,99 @@
-import * as React from "react"
-import { CalendarIcon } from "lucide-react"
-import { format } from "date-fns"
-import { DateRange } from "react-day-picker"
+import React from 'react';
+import { Calendar } from '@/components/ui/calendar';
+import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
+import { Button } from '@/components/ui/button';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import { Switch } from '@/components/ui/switch';
+import { Label } from '@/components/ui/label';
+import { CalendarIcon } from 'lucide-react';
+import { format } from 'date-fns';
+import { cn } from '@/lib/utils';
+import { useDateRangeContext, DATE_RANGE_PRESETS } from '@/contexts/date-range-context';
 
-import { cn } from "@/lib/utils"
-import { Button } from "@/components/ui/button"
-import { Calendar } from "@/components/ui/calendar"
-import {
-  Popover,
-  PopoverContent,
-  PopoverTrigger,
-} from "@/components/ui/popover"
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@/components/ui/select"
-
-export interface DateRangePickerProps {
-  value?: DateRange
-  onChange?: (range: DateRange | undefined) => void
-  onPresetChange?: (preset: string) => void
-  currentPreset?: string
-  showComparison?: boolean
-  comparisonEnabled?: boolean
-  onComparisonToggle?: (enabled: boolean) => void
-  className?: string
-}
-
-const presetRanges = [
-  { label: "Today", value: "today" },
-  { label: "Yesterday", value: "yesterday" },
-  { label: "Last 7 days", value: "last_7_days" },
-  { label: "Last 30 days", value: "last_30_days" },
-  { label: "This month", value: "this_month" },
-  { label: "Last month", value: "last_month" },
-  { label: "Custom range", value: "custom" },
-]
-
-export function DateRangePicker({
-  value,
-  onChange,
-  onPresetChange,
-  currentPreset = "last_7_days",
-  showComparison = true,
-  comparisonEnabled = false,
-  onComparisonToggle,
-  className,
-}: DateRangePickerProps) {
-  const [selectedPreset, setSelectedPreset] = React.useState(currentPreset)
-  const [isCalendarOpen, setIsCalendarOpen] = React.useState(false)
-
-  // Sync with external preset changes
-  React.useEffect(() => {
-    setSelectedPreset(currentPreset)
-  }, [currentPreset])
-
-  const handlePresetChange = (preset: string) => {
-    setSelectedPreset(preset)
-    onPresetChange?.(preset)
-    
-    if (preset !== "custom") {
-      setIsCalendarOpen(false)
-      // Clear custom date range when using presets
-      onChange?.(undefined)
-    }
-  }
-
-  const formatDateRange = (range: DateRange | undefined) => {
-    if (!range?.from) return "Select date range"
-    
-    if (!range.to) {
-      return format(range.from, "LLL dd, y")
-    }
-    
-    return `${format(range.from, "LLL dd, y")} - ${format(range.to, "LLL dd, y")}`
-  }
-
-  const getPresetLabel = () => {
-    const preset = presetRanges.find(p => p.value === selectedPreset)
-    return preset?.label || "Select range"
-  }
+export function DateRangePicker() {
+  const {
+    preset,
+    customRange,
+    comparisonEnabled,
+    currentRange,
+    previousRange,
+    setPreset,
+    setCustomRange,
+    setComparisonEnabled,
+  } = useDateRangeContext();
 
   return (
-    <div className={cn("flex flex-col gap-2", className)}>
-      <div className="flex items-center gap-2">
-        {/* Preset Selector */}
-        <Select value={selectedPreset} onValueChange={handlePresetChange}>
-          <SelectTrigger className="w-[150px]">
-            <SelectValue />
-          </SelectTrigger>
-          <SelectContent>
-            {presetRanges.map((preset) => (
-              <SelectItem key={preset.value} value={preset.value}>
-                {preset.label}
-              </SelectItem>
-            ))}
-          </SelectContent>
-        </Select>
+    <div className="flex items-center gap-4">
+      {/* Preset selector */}
+      <Select value={preset} onValueChange={setPreset}>
+        <SelectTrigger className="w-[180px]">
+          <SelectValue placeholder="Select date range" />
+        </SelectTrigger>
+        <SelectContent>
+          {DATE_RANGE_PRESETS.map((presetOption) => (
+            <SelectItem key={presetOption.value} value={presetOption.value}>
+              {presetOption.label}
+            </SelectItem>
+          ))}
+        </SelectContent>
+      </Select>
 
-        {/* Custom Date Range Picker */}
-        {selectedPreset === "custom" && (
-          <Popover open={isCalendarOpen} onOpenChange={setIsCalendarOpen}>
-            <PopoverTrigger asChild>
-              <Button
-                variant="outline"
-                className={cn(
-                  "w-[280px] justify-start text-left font-normal",
-                  !value && "text-muted-foreground"
-                )}
-              >
-                <CalendarIcon className="mr-2 h-4 w-4" />
-                {formatDateRange(value)}
-              </Button>
-            </PopoverTrigger>
-            <PopoverContent className="w-auto p-0" align="start">
-              <Calendar
-                initialFocus
-                mode="range"
-                defaultMonth={value?.from}
-                selected={value}
-                onSelect={onChange}
-                numberOfMonths={2}
-              />
-            </PopoverContent>
-          </Popover>
-        )}
+      {/* Custom date range picker */}
+      {preset === 'custom' && (
+        <Popover>
+          <PopoverTrigger asChild>
+            <Button
+              variant="outline"
+              className={cn(
+                'justify-start text-left font-normal w-[280px]',
+                !customRange && 'text-muted-foreground'
+              )}
+            >
+              <CalendarIcon className="mr-2 h-4 w-4" />
+              {customRange?.from ? (
+                customRange.to ? (
+                  <>
+                    {format(customRange.from, 'LLL dd, y')} -{' '}
+                    {format(customRange.to, 'LLL dd, y')}
+                  </>
+                ) : (
+                  format(customRange.from, 'LLL dd, y')
+                )
+              ) : (
+                <span>Pick a date range</span>
+              )}
+            </Button>
+          </PopoverTrigger>
+          <PopoverContent className="w-auto p-0" align="start">
+            <Calendar
+              initialFocus
+              mode="range"
+              defaultMonth={currentRange.from}
+              selected={customRange}
+              onSelect={setCustomRange}
+              numberOfMonths={2}
+            />
+          </PopoverContent>
+        </Popover>
+      )}
 
-        {/* Current Range Display for Presets */}
-        {selectedPreset !== "custom" && (
-          <div className="text-sm text-muted-foreground px-3 py-2 border rounded-md bg-muted/50">
-            {getPresetLabel()}
-          </div>
-        )}
+      {/* Comparison toggle */}
+      <div className="flex items-center space-x-2">
+        <Switch
+          id="comparison"
+          checked={comparisonEnabled}
+          onCheckedChange={setComparisonEnabled}
+        />
+        <Label htmlFor="comparison">Compare with previous period</Label>
       </div>
 
-      {/* Comparison Toggle */}
-      {showComparison && (
-        <div className="flex items-center gap-2">
-          <input
-            type="checkbox"
-            id="compare"
-            checked={comparisonEnabled}
-            onChange={(e) => onComparisonToggle?.(e.target.checked)}
-            className="rounded border-gray-300"
-          />
-          <label htmlFor="compare" className="text-sm font-medium">
-            Compare to previous period
-          </label>
+      {/* Display comparison period if enabled */}
+      {comparisonEnabled && previousRange && (
+        <div className="text-sm text-muted-foreground">
+          vs {format(previousRange.from, 'LLL dd, y')} -{' '}
+          {format(previousRange.to, 'LLL dd, y')}
         </div>
       )}
     </div>
-  )
+  );
 }

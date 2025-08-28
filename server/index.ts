@@ -7,7 +7,18 @@ import fs from 'fs';
 import path from 'path';
 import { fileURLToPath } from 'url';
 import { dirname } from 'path';
+import { format } from 'date-fns';
 import { campaignService } from './campaign-service.js';
+import { mlService } from './ml-service.js';
+import { searchService } from './search-service.js';
+
+// Helper function to calculate percentage change
+function calculatePercentageChange(current: number, previous: number): number {
+  if (previous === 0) return current > 0 ? 100 : 0;
+  return ((current - previous) / previous) * 100;
+}
+import { crmService } from './crm-service.js';
+import { chatService } from './chat-service.js';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = dirname(__filename);
@@ -47,6 +58,595 @@ app.get('/api/campaigns/last-fetch', async (req, res) => {
   } catch (error) {
     console.error('Error getting last fetch time:', error);
     res.status(500).json({ error: 'Failed to get last fetch time', details: error.message });
+  }
+});
+
+// Get campaign details
+app.get('/api/campaigns/:id', async (req, res) => {
+  try {
+    const { id } = req.params;
+    const { startDate, endDate } = req.query;
+
+    // Build date filter
+    const dateFilter = {};
+    if (startDate) {
+      dateFilter['gte'] = new Date(startDate as string);
+    }
+    if (endDate) {
+      dateFilter['lte'] = new Date(endDate as string);
+    }
+
+    // Get campaign with analytics
+    const campaign = await prisma.campaign.findUnique({
+      where: { id },
+      include: {
+        analytics: {
+          where: {
+            date: dateFilter,
+          },
+          orderBy: {
+            date: 'desc',
+          },
+        },
+        aiRecommendations: true,
+      },
+    });
+
+    if (!campaign) {
+      return res.status(404).json({ error: 'Campaign not found' });
+    }
+
+    // Calculate totals
+    const totalImpressions = campaign.analytics.reduce((sum, a) => sum + a.impressions, 0);
+    const totalClicks = campaign.analytics.reduce((sum, a) => sum + a.clicks, 0);
+    const totalConversions = campaign.analytics.reduce((sum, a) => sum + a.conversions, 0);
+    const totalCost = campaign.analytics.reduce((sum, a) => sum + a.cost, 0);
+    const totalConversionValue = campaign.analytics.reduce((sum, a) => sum + a.conversionValue, 0);
+
+    // Format analytics data
+    const formattedAnalytics = campaign.analytics.map(a => ({
+      date: format(a.date, 'MMM d, yyyy'),
+      impressions: a.impressions,
+      clicks: a.clicks,
+      conversions: a.conversions,
+      cost: a.cost,
+      conversionValue: a.conversionValue,
+      ctr: a.clicks / a.impressions,
+      cpc: a.cost / a.clicks,
+    }));
+
+    res.json({
+      id: campaign.id,
+      name: campaign.name,
+      status: campaign.status,
+      budget: `₹${(campaign.budget || 0).toLocaleString()}`,
+      spent: `₹${totalCost.toLocaleString()}`,
+      startDate: campaign.startDate?.toISOString(),
+      endDate: campaign.endDate?.toISOString(),
+      targetAudience: campaign.targetAudience,
+      analytics: formattedAnalytics,
+    });
+  } catch (error) {
+    console.error('Error fetching campaign details:', error);
+    res.status(500).json({ error: 'Failed to fetch campaign details', details: error.message });
+  }
+});
+
+// Get all campaigns with stats
+app.get('/api/campaigns', async (req, res) => {
+  try {
+    const { startDate, endDate } = req.query;
+    
+    // Build date filter
+    const dateFilter = {};
+    if (startDate) {
+      dateFilter['gte'] = new Date(startDate as string);
+    }
+    if (endDate) {
+      dateFilter['lte'] = new Date(endDate as string);
+    }
+
+    // Get campaigns with their analytics
+    const campaigns = await prisma.campaign.findMany({
+      include: {
+        analytics: {
+          where: {
+            date: Object.keys(dateFilter).length > 0 ? dateFilter : undefined,
+          },
+          orderBy: {
+            date: 'desc',
+          },
+        },
+        aiRecommendations: true,
+      },
+    });
+
+    // Transform data to match frontend types
+    const transformedCampaigns = campaigns.map(campaign => {
+      // Calculate aggregated stats for the campaign
+      const stats = campaign.analytics.reduce((acc, analytics) => {
+        acc.impressions += analytics.impressions;
+        acc.clicks += analytics.clicks;
+        acc.conversions += analytics.conversions;
+        acc.cost += analytics.cost;
+        return acc;
+      }, {
+        impressions: 0,
+        clicks: 0,
+        conversions: 0,
+        cost: 0,
+      });
+
+      // Calculate derived metrics
+      const ctr = stats.clicks / stats.impressions || 0;
+      const cpc = stats.cost / stats.clicks || 0;
+      const conversionRate = stats.conversions / stats.clicks || 0;
+      const costPerConversion = stats.cost / stats.conversions || 0;
+
+      return {
+        id: campaign.id,
+        name: campaign.name,
+        status: campaign.status,
+        budget: campaign.budget,
+        startDate: campaign.startDate?.toISOString(),
+        endDate: campaign.endDate?.toISOString(),
+        targetAudience: campaign.targetAudience,
+        campaignType: campaign.campaignType,
+        optimizationScore: campaign.optimizationScore,
+        bidStrategy: campaign.bidStrategy,
+        createdAt: campaign.createdAt.toISOString(),
+        updatedAt: campaign.updatedAt.toISOString(),
+        stats: {
+          impressions: stats.impressions,
+          clicks: stats.clicks,
+          conversions: stats.conversions,
+          cost: stats.cost,
+          ctr,
+          cpc,
+          conversionRate,
+          costPerConversion,
+        },
+        recommendations: campaign.aiRecommendations,
+      };
+    });
+
+    res.json({
+      campaigns: transformedCampaigns,
+      totalCount: transformedCampaigns.length,
+      pageCount: 1,
+    });
+  } catch (error) {
+    console.error('Error fetching campaigns:', error);
+    res.status(500).json({ error: 'Failed to fetch campaigns', details: error.message });
+  }
+});
+
+// Get campaign stats
+app.get('/api/campaigns/stats', async (req, res) => {
+  try {
+    const { startDate, endDate } = req.query;
+    
+    // Build date filter
+    const dateFilter = {};
+    if (startDate) {
+      dateFilter['gte'] = new Date(startDate as string);
+    }
+    if (endDate) {
+      dateFilter['lte'] = new Date(endDate as string);
+    }
+
+    // Get current period stats
+    const analytics = await prisma.analytics.aggregate({
+      where: {
+        date: dateFilter,
+      },
+      _sum: {
+        impressions: true,
+        clicks: true,
+        conversions: true,
+        cost: true,
+      },
+    });
+
+    const totalImpressions = analytics._sum.impressions || 0;
+    const totalClicks = analytics._sum.clicks || 0;
+    const totalConversions = analytics._sum.conversions || 0;
+    const totalCost = analytics._sum.cost || 0;
+
+    // Format current period stats
+    const current = {
+      totalImpressions: totalImpressions.toLocaleString(),
+      totalClicks: totalClicks.toLocaleString(),
+      totalConversions: totalConversions.toLocaleString(),
+      totalCost: `$${totalCost.toFixed(2)}`,
+      conversionRate: `${((totalConversions / totalClicks) * 100 || 0).toFixed(2)}%`,
+      avgCTR: `${((totalClicks / totalImpressions) * 100 || 0).toFixed(2)}%`,
+      avgCPC: `$${((totalCost / totalClicks) || 0).toFixed(2)}`,
+      costPerConversion: `$${((totalCost / totalConversions) || 0).toFixed(2)}`,
+    };
+
+    // Get previous period stats if dates are provided
+    let previous: CampaignStats | null = null;
+    let comparison: CampaignComparison | null = null;
+
+    interface CampaignStats {
+      totalImpressions: string;
+      totalClicks: string;
+      totalConversions: string;
+      totalCost: string;
+      conversionRate: string;
+      avgCTR: string;
+      avgCPC: string;
+      costPerConversion: string;
+    }
+
+    interface CampaignComparison {
+      totalImpressions: number;
+      totalClicks: number;
+      totalConversions: number;
+      totalCost: number;
+      conversionRate: number;
+      avgCTR: number;
+      avgCPC: number;
+    }
+
+    if (startDate && endDate) {
+      const currentStartDate = new Date(startDate as string);
+      const currentEndDate = new Date(endDate as string);
+      const daysDiff = Math.ceil((currentEndDate.getTime() - currentStartDate.getTime()) / (1000 * 60 * 60 * 24));
+      
+      const previousStartDate = new Date(currentStartDate);
+      previousStartDate.setDate(previousStartDate.getDate() - daysDiff);
+      const previousEndDate = new Date(currentStartDate);
+      previousEndDate.setDate(previousEndDate.getDate() - 1);
+
+      const previousAnalytics = await prisma.analytics.aggregate({
+        where: {
+          date: {
+            gte: previousStartDate,
+            lte: previousEndDate,
+          },
+        },
+        _sum: {
+          impressions: true,
+          clicks: true,
+          conversions: true,
+          cost: true,
+        },
+      });
+
+      const prevTotalImpressions = previousAnalytics._sum.impressions || 0;
+      const prevTotalClicks = previousAnalytics._sum.clicks || 0;
+      const prevTotalConversions = previousAnalytics._sum.conversions || 0;
+      const prevTotalCost = previousAnalytics._sum.cost || 0;
+
+      previous = {
+        totalImpressions: prevTotalImpressions.toLocaleString(),
+        totalClicks: prevTotalClicks.toLocaleString(),
+        totalConversions: prevTotalConversions.toLocaleString(),
+        totalCost: `$${prevTotalCost.toFixed(2)}`,
+        conversionRate: `${((prevTotalConversions / prevTotalClicks) * 100 || 0).toFixed(2)}%`,
+        avgCTR: `${((prevTotalClicks / prevTotalImpressions) * 100 || 0).toFixed(2)}%`,
+        avgCPC: `$${((prevTotalCost / prevTotalClicks) || 0).toFixed(2)}`,
+        costPerConversion: `$${((prevTotalCost / prevTotalConversions) || 0).toFixed(2)}`,
+      };
+
+      // Calculate comparison percentages
+      comparison = {
+        totalImpressions: calculatePercentageChange(totalImpressions, prevTotalImpressions),
+        totalClicks: calculatePercentageChange(totalClicks, prevTotalClicks),
+        totalConversions: calculatePercentageChange(totalConversions, prevTotalConversions),
+        totalCost: calculatePercentageChange(totalCost, prevTotalCost),
+        conversionRate: calculatePercentageChange(
+          (totalConversions / totalClicks) || 0,
+          (prevTotalConversions / prevTotalClicks) || 0
+        ),
+        avgCTR: calculatePercentageChange(
+          (totalClicks / totalImpressions) || 0,
+          (prevTotalClicks / prevTotalImpressions) || 0
+        ),
+        avgCPC: calculatePercentageChange(
+          (totalCost / totalClicks) || 0,
+          (prevTotalCost / prevTotalClicks) || 0
+        ),
+      };
+    }
+
+    res.json({
+      current,
+      previous,
+      comparison,
+    });
+  } catch (error) {
+    console.error('Error fetching campaign stats:', error);
+    res.status(500).json({ error: 'Failed to fetch campaign stats', details: error.message });
+  }
+});
+
+// Enhanced Chat Interface - Main endpoint for natural language commands
+app.post('/api/chat/command', async (req, res) => {
+  try {
+    const { message } = req.body;
+    const userId = req.headers['user-id'] as string || 'default-user-id';
+    
+    console.log(`📝 Processing chat command: "${message}"`);
+    
+    const response = await chatService.processCommand(message, userId);
+    
+    res.json(response);
+  } catch (error) {
+    console.error('Error processing chat command:', error);
+    res.status(500).json({ 
+      success: false,
+      message: 'Sorry, I encountered an error processing your request.',
+      error: error.message 
+    });
+  }
+});
+
+// ML Services endpoints
+app.post('/api/ml/predict-lead-quality', async (req, res) => {
+  try {
+    const { leadId, features } = req.body;
+    
+    const prediction = await mlService.predictLeadQuality(leadId, features);
+    
+    res.json({
+      success: true,
+      prediction,
+      leadId
+    });
+  } catch (error) {
+    console.error('Error predicting lead quality:', error);
+    res.status(500).json({ 
+      success: false,
+      error: 'Failed to predict lead quality',
+      details: error.message 
+    });
+  }
+});
+
+app.post('/api/ml/optimize-budget', async (req, res) => {
+  try {
+    const { campaignId } = req.body;
+    
+    const optimization = await mlService.optimizeCampaignBudget(campaignId);
+    
+    res.json({
+      success: true,
+      optimization,
+      campaignId
+    });
+  } catch (error) {
+    console.error('Error optimizing budget:', error);
+    res.status(500).json({ 
+      success: false,
+      error: 'Failed to optimize budget',
+      details: error.message 
+    });
+  }
+});
+
+app.post('/api/ml/predict-keyword-performance', async (req, res) => {
+  try {
+    const { keyword, campaignId } = req.body;
+    
+    const prediction = await mlService.predictKeywordPerformance(keyword, campaignId);
+    
+    res.json({
+      success: true,
+      prediction,
+      keyword,
+      campaignId
+    });
+  } catch (error) {
+    console.error('Error predicting keyword performance:', error);
+    res.status(500).json({ 
+      success: false,
+      error: 'Failed to predict keyword performance',
+      details: error.message 
+    });
+  }
+});
+
+app.post('/api/ml/analyze-ad-performance', async (req, res) => {
+  try {
+    const { adId } = req.body;
+    
+    const analysis = await mlService.analyzeAdPerformance(adId);
+    
+    res.json({
+      success: true,
+      analysis,
+      adId
+    });
+  } catch (error) {
+    console.error('Error analyzing ad performance:', error);
+    res.status(500).json({ 
+      success: false,
+      error: 'Failed to analyze ad performance',
+      details: error.message 
+    });
+  }
+});
+
+app.post('/api/ml/train-models', async (req, res) => {
+  try {
+    console.log('🔄 Starting ML model training...');
+    
+    await mlService.trainModels();
+    
+    res.json({
+      success: true,
+      message: 'ML model training completed successfully'
+    });
+  } catch (error) {
+    console.error('Error training ML models:', error);
+    res.status(500).json({ 
+      success: false,
+      error: 'Failed to train ML models',
+      details: error.message 
+    });
+  }
+});
+
+// CRM Integration endpoints
+app.post('/api/crm/sync', async (req, res) => {
+  try {
+    const { integrationId } = req.body;
+    
+    if (integrationId) {
+      const result = await crmService.syncIntegration(integrationId);
+      res.json({
+        success: true,
+        result,
+        integrationId
+      });
+    } else {
+      const results = await crmService.syncAllIntegrations();
+      res.json({
+        success: true,
+        results,
+        totalSynced: results.length
+      });
+    }
+  } catch (error) {
+    console.error('Error syncing CRM:', error);
+    res.status(500).json({ 
+      success: false,
+      error: 'Failed to sync CRM data',
+      details: error.message 
+    });
+  }
+});
+
+app.get('/api/crm/lead-quality-analysis/:campaignId', async (req, res) => {
+  try {
+    const { campaignId } = req.params;
+    
+    const analysis = await crmService.analyzeLeadQualityForCampaign(campaignId);
+    
+    res.json({
+      success: true,
+      analysis,
+      campaignId
+    });
+  } catch (error) {
+    console.error('Error analyzing lead quality:', error);
+    res.status(500).json({ 
+      success: false,
+      error: 'Failed to analyze lead quality',
+      details: error.message 
+    });
+  }
+});
+
+// Account Management endpoints
+app.get('/api/account/alerts', async (req, res) => {
+  try {
+    const userId = req.headers['user-id'] as string || 'default-user-id';
+    
+    const alerts = await prisma.accountAlert.findMany({
+      where: { 
+        userId,
+        isResolved: false 
+      },
+      orderBy: { createdAt: 'desc' },
+      take: 20
+    });
+    
+    res.json({
+      success: true,
+      alerts,
+      count: alerts.length
+    });
+  } catch (error) {
+    console.error('Error fetching alerts:', error);
+    res.status(500).json({ 
+      success: false,
+      error: 'Failed to fetch alerts',
+      details: error.message 
+    });
+  }
+});
+
+app.post('/api/account/alerts/:alertId/resolve', async (req, res) => {
+  try {
+    const { alertId } = req.params;
+    
+    const alert = await prisma.accountAlert.update({
+      where: { id: alertId },
+      data: { 
+        isResolved: true,
+        resolvedAt: new Date()
+      }
+    });
+    
+    res.json({
+      success: true,
+      alert
+    });
+  } catch (error) {
+    console.error('Error resolving alert:', error);
+    res.status(500).json({ 
+      success: false,
+      error: 'Failed to resolve alert',
+      details: error.message 
+    });
+  }
+});
+
+// Budget Rules endpoints
+app.get('/api/budget/rules', async (req, res) => {
+  try {
+    const userId = req.headers['user-id'] as string || 'default-user-id';
+    
+    const rules = await prisma.budgetRule.findMany({
+      where: { userId },
+      orderBy: { createdAt: 'desc' }
+    });
+    
+    res.json({
+      success: true,
+      rules,
+      count: rules.length
+    });
+  } catch (error) {
+    console.error('Error fetching budget rules:', error);
+    res.status(500).json({ 
+      success: false,
+      error: 'Failed to fetch budget rules',
+      details: error.message 
+    });
+  }
+});
+
+app.post('/api/budget/rules', async (req, res) => {
+  try {
+    const { name, type, condition, action } = req.body;
+    const userId = req.headers['user-id'] as string || 'default-user-id';
+    
+    const rule = await prisma.budgetRule.create({
+      data: {
+        name,
+        type,
+        condition,
+        action,
+        userId
+      }
+    });
+    
+    res.json({
+      success: true,
+      rule
+    });
+  } catch (error) {
+    console.error('Error creating budget rule:', error);
+    res.status(500).json({ 
+      success: false,
+      error: 'Failed to create budget rule',
+      details: error.message 
+    });
   }
 });
 
@@ -259,85 +859,84 @@ async function executePythonAutomation(
 // Analytics endpoints with date filtering (like Google Ads)
 app.get('/api/analytics', async (req, res) => {
   try {
-    const { startDate, endDate, dateRange } = req.query;
+    const { startDate, endDate } = req.query;
     
-    // Build date filter like Google Ads
+    // Build date filter
     let dateFilter = {};
-    
     if (startDate && endDate) {
-      // Custom date range
+      const start = new Date(startDate as string);
+      const end = new Date(endDate as string);
+      start.setHours(0, 0, 0, 0);
+      end.setHours(23, 59, 59, 999);
+      
       dateFilter = {
         date: {
-          gte: new Date(startDate as string),
-          lte: new Date(endDate as string),
+          gte: start,
+          lte: end,
         },
       };
-    } else if (dateRange) {
-      // Predefined date ranges (like Google Ads) - use UTC to match database
-      const now = new Date();
-      const today = new Date(now.getFullYear(), now.getMonth(), now.getDate());
-      
-      switch (dateRange) {
-        case 'today':
-          const tomorrow = new Date(today);
-          tomorrow.setDate(tomorrow.getDate() + 1);
-          dateFilter = { 
-            date: { 
-              gte: today,
-              lt: tomorrow 
-            } 
-          };
-          break;
-        case 'yesterday':
-          const yesterday = new Date(today);
-          yesterday.setDate(yesterday.getDate() - 1);
-
-          dateFilter = { 
-            date: { 
-              gte: yesterday, 
-              lt: today 
-            } 
-          };
-          break;
-        case 'last_7_days':
-          const last7Days = new Date(today);
-          last7Days.setDate(last7Days.getDate() - 7);
-          dateFilter = { date: { gte: last7Days } };
-          break;
-        case 'last_30_days':
-          const last30Days = new Date(today);
-          last30Days.setDate(last30Days.getDate() - 30);
-          dateFilter = { date: { gte: last30Days } };
-          break;
-        case 'this_month':
-          const startOfMonth = new Date(now.getFullYear(), now.getMonth(), 1);
-          dateFilter = { date: { gte: startOfMonth } };
-          break;
-        case 'last_month':
-          const startOfLastMonth = new Date(now.getFullYear(), now.getMonth() - 1, 1);
-          const endOfLastMonth = new Date(now.getFullYear(), now.getMonth(), 0);
-          dateFilter = { 
-            date: { 
-              gte: startOfLastMonth, 
-              lte: endOfLastMonth 
-            } 
-          };
-          break;
-      }
     }
     
-    const analytics = await prisma.analytics.findMany({
+    // Get analytics data grouped by date
+    const analytics = await prisma.analytics.groupBy({
+      by: ['date'],
       where: dateFilter,
-      include: {
-        campaign: true,
-        user: true,
+      _sum: {
+        impressions: true,
+        clicks: true,
+        conversions: true,
+        cost: true,
+        conversionValue: true,
       },
       orderBy: {
-        date: 'desc',
+        date: 'asc', // Order by date ascending for charts
       },
     });
+
+    // Transform analytics data to match frontend types
+    const dailyStats = analytics.map(a => {
+      const impressions = a._sum.impressions || 0;
+      const clicks = a._sum.clicks || 0;
+      const conversions = a._sum.conversions || 0;
+      const cost = a._sum.cost || 0;
+      const conversionValue = a._sum.conversionValue || 0;
+
+      return {
+        date: a.date.toISOString(),
+        impressions,
+        clicks,
+        conversions,
+        cost,
+        conversionValue,
+        ctr: clicks / impressions || 0,
+        cpc: cost / clicks || 0,
+        costPerConversion: conversions > 0 ? cost / conversions : null,
+      };
+    });
+
+    // Calculate totals for the period
+    const totalImpressions = dailyStats.reduce((sum, a) => sum + a.impressions, 0);
+    const totalClicks = dailyStats.reduce((sum, a) => sum + a.clicks, 0);
+    const totalConversions = dailyStats.reduce((sum, a) => sum + a.conversions, 0);
+    const totalCost = dailyStats.reduce((sum, a) => sum + a.cost, 0);
+    const totalValue = dailyStats.reduce((sum, a) => sum + a.conversionValue, 0);
+
+    const totalStats = {
+      totalImpressions: totalImpressions.toLocaleString(),
+      totalClicks: totalClicks.toLocaleString(),
+      totalConversions: totalConversions.toLocaleString(),
+      totalCost: `$${totalCost.toFixed(2)}`,
+      revenue: `$${totalValue.toFixed(2)}`,
+      conversionRate: `${((totalConversions / totalClicks) * 100 || 0).toFixed(2)}%`,
+      avgCTR: `${((totalClicks / totalImpressions) * 100 || 0).toFixed(2)}%`,
+      avgCPC: `$${((totalCost / totalClicks) || 0).toFixed(2)}`,
+      costPerConversion: totalConversions > 0 ? `$${(totalCost / totalConversions).toFixed(2)}` : '-',
+    };
     
-    res.json(analytics);
+    res.json({
+      dailyStats,
+      totalStats,
+    });
   } catch (error) {
     console.error('Error fetching analytics:', error);
     res.status(500).json({ error: 'Failed to fetch analytics data' });
@@ -346,94 +945,130 @@ app.get('/api/analytics', async (req, res) => {
 
 app.get('/api/analytics/stats', async (req, res) => {
   try {
-    const { startDate, endDate, dateRange } = req.query;
+    const { startDate, endDate } = req.query;
     
-    // Build same date filter for stats
+    // Build date filter
     let dateFilter = {};
-    
     if (startDate && endDate) {
+      const start = new Date(startDate as string);
+      const end = new Date(endDate as string);
+      start.setHours(0, 0, 0, 0);
+      end.setHours(23, 59, 59, 999);
+      
       dateFilter = {
         date: {
-          gte: new Date(startDate as string),
-          lte: new Date(endDate as string),
+          gte: start,
+          lte: end,
         },
       };
-    } else if (dateRange) {
-      const now = new Date();
-      const today = new Date(now.getFullYear(), now.getMonth(), now.getDate());
-      
-      switch (dateRange) {
-        case 'today':
-          const tomorrowTemp = new Date(today);
-          tomorrowTemp.setDate(tomorrowTemp.getDate() + 1);
-          dateFilter = { 
-            date: { 
-              gte: today,
-              lt: tomorrowTemp 
-            } 
-          };
-          break;
-        case 'yesterday':
-          const yesterday = new Date(today);
-          yesterday.setDate(yesterday.getDate() - 1);
-          dateFilter = { date: { gte: yesterday, lt: today } };
-          break;
-        case 'last_7_days':
-          const last7Days = new Date(today);
-          last7Days.setDate(last7Days.getDate() - 7);
-          dateFilter = { date: { gte: last7Days } };
-          break;
-        case 'last_30_days':
-          const last30Days = new Date(today);
-          last30Days.setDate(last30Days.getDate() - 30);
-          dateFilter = { date: { gte: last30Days } };
-          break;
-        case 'this_month':
-          const startOfMonth = new Date(now.getFullYear(), now.getMonth(), 1);
-          dateFilter = { date: { gte: startOfMonth } };
-          break;
-        case 'last_month':
-          const startOfLastMonth = new Date(now.getFullYear(), now.getMonth() - 1, 1);
-          const endOfLastMonth = new Date(now.getFullYear(), now.getMonth(), 0);
-          dateFilter = { date: { gte: startOfLastMonth, lte: endOfLastMonth } };
-          break;
-      }
     }
-    
-    const totalUsers = await prisma.user.count();
-    const totalRevenue = await prisma.analytics.aggregate({
-      where: dateFilter,
-      _sum: {
-        conversionValue: true,
-      },
-    });
-    const totalConversions = await prisma.analytics.aggregate({
-      where: dateFilter,
-      _sum: {
-        conversions: true,
-      },
-    });
-    const totalImpressions = await prisma.analytics.aggregate({
+
+    // Get current period stats
+    const currentStats = await prisma.analytics.aggregate({
       where: dateFilter,
       _sum: {
         impressions: true,
+        clicks: true,
+        conversions: true,
+        cost: true,
+        conversionValue: true,
       },
     });
 
-    const stats = {
-      totalUsers: totalUsers.toLocaleString(),
-      revenue: `₹${(totalRevenue._sum.conversionValue || 0).toLocaleString()}`,
-      conversionRate: (totalImpressions._sum.impressions || 0) > 0 
-        ? ((totalConversions._sum.conversions || 0) / (totalImpressions._sum.impressions || 0) * 100).toFixed(1) + '%'
-        : '0%',
-      aiScore: '94.2',
-      // Add date range info
-      dateRange: dateRange || 'all_time',
-      startDate: startDate || null,
-      endDate: endDate || null,
+    const totalImpressions = currentStats._sum.impressions || 0;
+    const totalClicks = currentStats._sum.clicks || 0;
+    const totalConversions = currentStats._sum.conversions || 0;
+    const totalCost = currentStats._sum.cost || 0;
+    const totalValue = currentStats._sum.conversionValue || 0;
+
+    // Format current period stats
+    const current = {
+      totalImpressions: totalImpressions.toLocaleString(),
+      totalClicks: totalClicks.toLocaleString(),
+      totalConversions: totalConversions.toLocaleString(),
+      totalCost: `$${totalCost.toFixed(2)}`,
+      conversionRate: `${((totalConversions / totalClicks) * 100 || 0).toFixed(2)}%`,
+      avgCTR: `${((totalClicks / totalImpressions) * 100 || 0).toFixed(2)}%`,
+      avgCPC: `$${((totalCost / totalClicks) || 0).toFixed(2)}`,
+      costPerConversion: totalConversions > 0 ? `$${(totalCost / totalConversions).toFixed(2)}` : '-',
+      revenue: `$${totalValue.toFixed(2)}`,
     };
 
-    res.json(stats);
+    // Get previous period stats if dates are provided
+    let previous: any = null;
+    let comparison: any = null;
+
+    if (startDate && endDate) {
+      const currentStartDate = new Date(startDate as string);
+      const currentEndDate = new Date(endDate as string);
+      const daysDiff = Math.ceil((currentEndDate.getTime() - currentStartDate.getTime()) / (1000 * 60 * 60 * 24));
+      
+      const previousStartDate = new Date(currentStartDate);
+      previousStartDate.setDate(previousStartDate.getDate() - daysDiff);
+      const previousEndDate = new Date(currentStartDate);
+      previousEndDate.setDate(previousEndDate.getDate() - 1);
+
+      const previousStats = await prisma.analytics.aggregate({
+        where: {
+          date: {
+            gte: previousStartDate,
+            lte: previousEndDate,
+          },
+        },
+        _sum: {
+          impressions: true,
+          clicks: true,
+          conversions: true,
+          cost: true,
+          conversionValue: true,
+        },
+      });
+
+      const prevImpressions = previousStats._sum.impressions || 0;
+      const prevClicks = previousStats._sum.clicks || 0;
+      const prevConversions = previousStats._sum.conversions || 0;
+      const prevCost = previousStats._sum.cost || 0;
+      const prevValue = previousStats._sum.conversionValue || 0;
+
+      previous = {
+        totalImpressions: prevImpressions.toLocaleString(),
+        totalClicks: prevClicks.toLocaleString(),
+        totalConversions: prevConversions.toLocaleString(),
+        totalCost: `$${prevCost.toFixed(2)}`,
+        conversionRate: `${((prevConversions / prevClicks) * 100 || 0).toFixed(2)}%`,
+        avgCTR: `${((prevClicks / prevImpressions) * 100 || 0).toFixed(2)}%`,
+        avgCPC: `$${((prevCost / prevClicks) || 0).toFixed(2)}`,
+        costPerConversion: prevConversions > 0 ? `$${(prevCost / prevConversions).toFixed(2)}` : '-',
+        revenue: `$${prevValue.toFixed(2)}`,
+      };
+
+      // Calculate comparison percentages
+      comparison = {
+        totalImpressions: calculatePercentageChange(totalImpressions, prevImpressions),
+        totalClicks: calculatePercentageChange(totalClicks, prevClicks),
+        totalConversions: calculatePercentageChange(totalConversions, prevConversions),
+        totalCost: calculatePercentageChange(totalCost, prevCost),
+        conversionRate: calculatePercentageChange(
+          (totalConversions / totalClicks) || 0,
+          (prevConversions / prevClicks) || 0
+        ),
+        avgCTR: calculatePercentageChange(
+          (totalClicks / totalImpressions) || 0,
+          (prevClicks / prevImpressions) || 0
+        ),
+        avgCPC: calculatePercentageChange(
+          (totalCost / totalClicks) || 0,
+          (prevCost / prevClicks) || 0
+        ),
+        revenue: calculatePercentageChange(totalValue, prevValue),
+      };
+    }
+
+    res.json({
+      current,
+      previous,
+      comparison,
+    });
   } catch (error) {
     console.error('Error fetching analytics stats:', error);
     res.status(500).json({ error: 'Failed to fetch analytics stats' });
@@ -879,7 +1514,7 @@ app.post('/api/insights/generate', async (req, res) => {
     let prompt = `You are an expert marketing consultant analyzing campaign performance and expert essays.
 
 Current Campaign Performance Summary:
-${campaigns.map(c => `
+${campaigns?.campaigns?.map(c => `
 - ${c.name}:
   Budget: ${c.budget}
   Spent: ${c.spent}
@@ -887,12 +1522,14 @@ ${campaigns.map(c => `
   Clicks: ${c.clicks}
   CTR: ${c.ctr}
   Conversions: ${c.conversions}
-  Conv. Value: ${c.conversionValue}`).join('\n')}
+  Conv. Value: ${c.conversionValue}`).join('\n') || 'No campaign data available.'}
 
 Overall Analytics:
-- Total Revenue: ${analyticsData.revenue}
-- Conversion Rate: ${analyticsData.conversionRate}
-- AI Score: ${analyticsData.aiScore}
+- Total Revenue: ${analyticsData?.current?.revenue || 'Not available'}
+- Conversion Rate: ${analyticsData?.current?.conversionRate || 'Not available'}
+- Total Impressions: ${analyticsData?.current?.totalImpressions || 'Not available'}
+- Total Clicks: ${analyticsData?.current?.totalClicks || 'Not available'}
+- Average CTR: ${analyticsData?.current?.avgCTR || 'Not available'}
 
 Based on this performance data and the marketing expert essays, `;
 
@@ -1467,6 +2104,39 @@ app.post('/api/chat', async (req, res) => {
   } catch (error) {
     console.error('Error in chat:', error);
     res.status(500).json({ error: 'Failed to process chat message' });
+  }
+});
+
+// Server-side search endpoint
+app.get('/api/search', async (req, res) => {
+  try {
+    const { query, maxResults, siteRestrict, freshness, forceRefresh } = req.query;
+    
+    if (!query || typeof query !== 'string') {
+      return res.status(400).json({ error: 'Search query is required' });
+    }
+    
+    console.log('Search request:', { query, maxResults, siteRestrict, freshness, forceRefresh });
+    
+    const options: any = {};
+    
+    if (maxResults) options.maxResults = parseInt(maxResults as string);
+    if (siteRestrict) options.siteRestrict = siteRestrict as string;
+    if (freshness && ['day', 'week', 'month', 'year'].includes(freshness as string)) {
+      options.freshness = freshness as 'day' | 'week' | 'month' | 'year';
+    }
+    if (forceRefresh === 'true') options.forceRefresh = true;
+    
+    const results = await searchService.search(query, options);
+    
+    res.json(results);
+  } catch (error) {
+    console.error('Error performing search:', error);
+    res.status(500).json({ 
+      error: 'Failed to perform search',
+      message: error instanceof Error ? error.message : 'Unknown error',
+      query: req.query.query
+    });
   }
 });
 
