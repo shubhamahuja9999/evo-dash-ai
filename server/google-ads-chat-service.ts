@@ -695,7 +695,7 @@ Respond with JSON only:
 
   async getUserSessions(userId: string): Promise<any[]> {
     return await prisma.chatSession.findMany({
-      where: { userId, isActive: true },
+      where: { userId},
       include: {
         messages: {
           take: 1,
