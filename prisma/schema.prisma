@@ -588,3 +588,29 @@ model SearchCache {
   
   @@map("search_cache")
 }
+
+// Campaign daily metrics
+model CampaignMetric {
+  id                String   @id @default(cuid())
+  date              DateTime
+  campaignName      String
+  bidStrategy       String
+  conversions       Float
+  currencyCode      String
+  costPerConversion Float?   @map("cost_per_conversion")
+  clicks            Int
+  ctr               Float    // Click-through rate as percentage
+  impressions       Int
+  views             Int
+  avgCpv            Float    // Average cost per view
+  
+  // Timestamps
+  createdAt         DateTime @default(now())
+  updatedAt         DateTime @updatedAt
+
+  // Indexes for faster querying
+  @@index([date])
+  @@index([campaignName])
+  
+  @@map("campaign_metrics")
+}

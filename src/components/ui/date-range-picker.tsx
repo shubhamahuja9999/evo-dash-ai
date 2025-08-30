@@ -17,17 +17,31 @@ export function DateRangePicker() {
     comparisonEnabled,
     currentRange,
     previousRange,
+    dataDateRange,
     setPreset,
     setCustomRange,
     setComparisonEnabled,
   } = useDateRangeContext();
+
+  // Format date for display
+  const formatDate = (date: Date) => {
+    return format(new Date(date), 'MMM dd, yyyy');
+  };
+
+  // Get current date range display
+  const getCurrentRangeDisplay = () => {
+    if (!currentRange) return 'Select date range';
+    return `${formatDate(currentRange.from)} - ${formatDate(currentRange.to)}`;
+  };
 
   return (
     <div className="flex items-center gap-4">
       {/* Preset selector */}
       <Select value={preset} onValueChange={setPreset}>
         <SelectTrigger className="w-[180px]">
-          <SelectValue placeholder="Select date range" />
+          <SelectValue>
+            {DATE_RANGE_PRESETS.find(p => p.value === preset)?.label || 'Select date range'}
+          </SelectValue>
         </SelectTrigger>
         <SelectContent>
           {DATE_RANGE_PRESETS.map((presetOption) => (
@@ -37,6 +51,11 @@ export function DateRangePicker() {
           ))}
         </SelectContent>
       </Select>
+
+      {/* Current date range display */}
+      <div className="text-sm">
+        {getCurrentRangeDisplay()}
+      </div>
 
       {/* Custom date range picker */}
       {preset === 'custom' && (
@@ -53,11 +72,10 @@ export function DateRangePicker() {
               {customRange?.from ? (
                 customRange.to ? (
                   <>
-                    {format(customRange.from, 'LLL dd, y')} -{' '}
-                    {format(customRange.to, 'LLL dd, y')}
+                    {formatDate(customRange.from)} - {formatDate(customRange.to)}
                   </>
                 ) : (
-                  format(customRange.from, 'LLL dd, y')
+                  formatDate(customRange.from)
                 )
               ) : (
                 <span>Pick a date range</span>
@@ -72,6 +90,13 @@ export function DateRangePicker() {
               selected={customRange}
               onSelect={setCustomRange}
               numberOfMonths={2}
+              disabled={(date) => {
+                if (!dataDateRange) return false;
+                return (
+                  date < dataDateRange.startDate ||
+                  date > dataDateRange.endDate
+                );
+              }}
             />
           </PopoverContent>
         </Popover>
@@ -90,8 +115,14 @@ export function DateRangePicker() {
       {/* Display comparison period if enabled */}
       {comparisonEnabled && previousRange && (
         <div className="text-sm text-muted-foreground">
-          vs {format(previousRange.from, 'LLL dd, y')} -{' '}
-          {format(previousRange.to, 'LLL dd, y')}
+          vs {formatDate(previousRange.from)} - {formatDate(previousRange.to)}
+        </div>
+      )}
+
+      {/* Display available date range */}
+      {dataDateRange && (
+        <div className="text-xs text-muted-foreground">
+          Available data: {formatDate(dataDateRange.startDate)} - {formatDate(dataDateRange.endDate)}
         </div>
       )}
     </div>

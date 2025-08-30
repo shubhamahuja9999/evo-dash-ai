@@ -11,6 +11,7 @@ import { format } from 'date-fns';
 import { campaignService } from './campaign-service.js';
 import { mlService } from './ml-service.js';
 import { searchService } from './search-service.js';
+import { getCampaignMetrics, getDateRange } from './campaign-metrics-service.js';
 
 // Helper function to calculate percentage change
 function calculatePercentageChange(current: number, previous: number): number {
@@ -2870,6 +2871,81 @@ app.get('/api/search', async (req, res) => {
 });
 
 
+
+// Campaign Metrics endpoints
+app.get('/api/campaign-metrics', async (req, res) => {
+  try {
+    const { startDate, endDate, campaignName } = req.query;
+    
+    // Get the available date range
+    const dateRange = await getDateRange();
+    
+    // Parse and validate dates
+    let queryStartDate = startDate ? new Date(startDate as string) : dateRange.startDate;
+    let queryEndDate = endDate ? new Date(endDate as string) : dateRange.endDate;
+    
+    // Ensure dates are within the available range
+    if (queryStartDate < dateRange.startDate) queryStartDate = dateRange.startDate;
+    if (queryEndDate > dateRange.endDate) queryEndDate = dateRange.endDate;
+    
+    // Get metrics
+    const result = await getCampaignMetrics({
+      startDate: queryStartDate,
+      endDate: queryEndDate,
+      campaignName: campaignName as string | undefined
+    });
+
+    res.json({
+      metrics: result.metrics,
+      summary: result.summary,
+      dateRange: {
+        start: queryStartDate,
+        end: queryEndDate,
+        availableRange: {
+          start: dateRange.startDate,
+          end: dateRange.endDate
+        }
+      }
+    });
+  } catch (error) {
+    console.error('Error fetching campaign metrics:', error);
+    res.status(500).json({ error: 'Failed to fetch campaign metrics' });
+  }
+});
+
+app.get('/api/campaign-metrics/campaigns', async (req, res) => {
+  try {
+    const campaigns = await prisma.campaignMetric.findMany({
+      select: {
+        campaignName: true
+      },
+      distinct: ['campaignName']
+    });
+
+    res.json(campaigns.map(c => c.campaignName));
+  } catch (error) {
+    console.error('Error fetching campaign names:', error);
+    res.status(500).json({ error: 'Failed to fetch campaign names' });
+  }
+});
+
+app.get('/api/campaign-metrics/date-range', async (req, res) => {
+  try {
+    const dateRange = await getDateRange();
+    
+    res.json({
+      startDate: dateRange.startDate.toISOString(),
+      endDate: dateRange.endDate.toISOString(),
+      availableDates: {
+        start: dateRange.startDate.toISOString(),
+        end: dateRange.endDate.toISOString()
+      }
+    });
+  } catch (error) {
+    console.error('Error fetching date range:', error);
+    res.status(500).json({ error: 'Failed to fetch date range' });
+  }
+});
 
 // Start server
 app.listen(PORT, () => {

@@ -31,6 +31,7 @@ import { useQuery } from '@tanstack/react-query';
 import { useParams, useNavigate } from 'react-router-dom';
 import { useDateRangeContext } from '@/contexts/date-range-context';
 import type { DateRangeParams } from '@/hooks/use-date-range';
+import { format, parseISO } from 'date-fns';
 
 interface CampaignAnalytics {
   date: string;
@@ -78,6 +79,16 @@ const getStatusColor = (status: string) => {
   }
 };
 
+// Helper function to format dates
+const formatDate = (dateString: string) => {
+  try {
+    return format(parseISO(dateString), 'MMM dd, yyyy');
+  } catch (error) {
+    console.error('Error formatting date:', error);
+    return dateString;
+  }
+};
+
 const CampaignDetails = () => {
   const { campaignId } = useParams<{ campaignId: string }>();
   const navigate = useNavigate();
@@ -114,6 +125,12 @@ const CampaignDetails = () => {
       </div>
     );
   }
+
+  // Format analytics dates
+  const formattedAnalytics = campaign.analytics.map(item => ({
+    ...item,
+    date: formatDate(item.date)
+  }));
 
   // Calculate totals
   const totalImpressions = campaign.analytics.reduce((sum, item) => sum + item.impressions, 0);
@@ -153,7 +170,7 @@ const CampaignDetails = () => {
               </Badge>
             </div>
             <p className="text-muted-foreground">
-              {campaign.targetAudience} • {campaign.startDate} - {campaign.endDate}
+              {campaign.targetAudience} • {formatDate(campaign.startDate)} - {formatDate(campaign.endDate)}
             </p>
           </div>
         </div>
@@ -261,7 +278,7 @@ const CampaignDetails = () => {
           </CardHeader>
           <CardContent>
             <ResponsiveContainer width="100%" height={300}>
-              <LineChart data={campaign.analytics}>
+              <LineChart data={formattedAnalytics}>
                 <CartesianGrid strokeDasharray="3 3" stroke="hsl(var(--border))" />
                 <XAxis dataKey="date" stroke="hsl(var(--muted-foreground))" />
                 <YAxis stroke="hsl(var(--muted-foreground))" />
@@ -303,7 +320,7 @@ const CampaignDetails = () => {
           </CardHeader>
           <CardContent>
             <ResponsiveContainer width="100%" height={300}>
-              <BarChart data={campaign.analytics}>
+              <BarChart data={formattedAnalytics}>
                 <CartesianGrid strokeDasharray="3 3" stroke="hsl(var(--border))" />
                 <XAxis dataKey="date" stroke="hsl(var(--muted-foreground))" />
                 <YAxis stroke="hsl(var(--muted-foreground))" />
@@ -341,7 +358,7 @@ const CampaignDetails = () => {
           </CardHeader>
           <CardContent>
             <ResponsiveContainer width="100%" height={300}>
-              <AreaChart data={campaign.analytics}>
+              <AreaChart data={formattedAnalytics}>
                 <CartesianGrid strokeDasharray="3 3" stroke="hsl(var(--border))" />
                 <XAxis dataKey="date" stroke="hsl(var(--muted-foreground))" />
                 <YAxis stroke="hsl(var(--muted-foreground))" />
@@ -424,7 +441,7 @@ const CampaignDetails = () => {
                 </tr>
               </thead>
               <tbody>
-                {campaign.analytics.map((item, index) => (
+                {formattedAnalytics.map((item, index) => (
                   <tr key={index} className="border-b border-border hover:bg-muted/50">
                     <td className="p-3 font-medium">{item.date}</td>
                     <td className="p-3 text-right">{item.impressions.toLocaleString()}</td>

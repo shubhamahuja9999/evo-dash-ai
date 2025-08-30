@@ -132,6 +132,10 @@ class GoogleAdsAPI {
     });
   }
 
+  static async getKeywordPerformance(accountId: string, timeframe: string = '30d') {
+    return this.request(`/google-ads/account/${accountId}/keyword-performance?timeframe=${timeframe}`);
+  }
+
   static async optimizeBids(accountId: string) {
     return this.request(`/google-ads/account/${accountId}/optimize-bids`, {
       method: 'POST',

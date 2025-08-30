@@ -38,6 +38,15 @@ import {
 } from 'lucide-react';
 import GoogleAdsAPI from '../lib/google-ads-api';
 
+interface KeywordPerformance {
+  keyword: string;
+  ctr: number;
+  conversions: number;
+  cost: number;
+  impressions: number;
+  clicks: number;
+}
+
 interface DashboardData {
   accountSummary: {
     accountId: string;
@@ -65,6 +74,10 @@ interface DashboardData {
   alerts: any[];
   trends: any[];
   recommendations: any[];
+  keywordPerformance?: {
+    topPerformers: KeywordPerformance[];
+    needsAttention: KeywordPerformance[];
+  };
 }
 
 const GoogleAdsDashboard: React.FC = () => {
@@ -91,9 +104,23 @@ const GoogleAdsDashboard: React.FC = () => {
   const fetchDashboardData = async () => {
     try {
       setLoading(true);
-      const result = await GoogleAdsAPI.getDashboardData(selectedTimeframe);
-      if (result.success && result.data) {
-        setData(result.data as DashboardData);
+      const [dashboardResult, keywordResult] = await Promise.all([
+        GoogleAdsAPI.getDashboardData(selectedTimeframe),
+        GoogleAdsAPI.getKeywordPerformance('8936153023', selectedTimeframe)
+      ]);
+
+      if (dashboardResult.success && dashboardResult.data) {
+        const dashboardData = dashboardResult.data as DashboardData;
+        
+        // Merge keyword performance data if available
+        if (keywordResult.success && keywordResult.data) {
+          dashboardData.keywordPerformance = keywordResult.data as {
+            topPerformers: KeywordPerformance[];
+            needsAttention: KeywordPerformance[];
+          };
+        }
+        
+        setData(dashboardData);
       }
     } catch (error) {
       console.error('Error fetching dashboard data:', error);
@@ -617,10 +644,34 @@ const GoogleAdsDashboard: React.FC = () => {
                   <div>
                     <h4 className="font-medium text-green-600 mb-2">Top Performers</h4>
                     <div className="space-y-2">
-                      {['digital marketing', 'online advertising', 'ppc management'].map((keyword, index) => (
+                      {loading ? (
+                        // Loading skeleton for top performers
+                        Array(3).fill(0).map((_, index) => (
+                          <div key={index} className="flex justify-between items-center p-2 bg-gray-100 rounded animate-pulse">
+                            <div className="space-y-2">
+                              <div className="h-4 w-32 bg-gray-200 rounded"></div>
+                              <div className="h-3 w-24 bg-gray-200 rounded"></div>
+                            </div>
+                            <div className="space-y-2">
+                              <div className="h-4 w-16 bg-gray-200 rounded"></div>
+                              <div className="h-3 w-20 bg-gray-200 rounded"></div>
+                            </div>
+                          </div>
+                        ))
+                      ) : data.keywordPerformance?.topPerformers.map((keyword, index) => (
                         <div key={index} className="flex justify-between items-center p-2 bg-green-50 rounded">
-                          <span className="text-sm">{keyword}</span>
-                          <Badge variant="outline">3.2% CTR</Badge>
+                          <div>
+                            <span className="text-sm font-medium">{keyword.keyword}</span>
+                            <div className="text-xs text-gray-600">
+                              {keyword.clicks} clicks • {keyword.conversions} conv.
+                            </div>
+                          </div>
+                          <div className="text-right">
+                            <Badge variant="outline">{(keyword.ctr * 100).toFixed(1)}% CTR</Badge>
+                            <div className="text-xs text-gray-600 mt-1">
+                              ${keyword.cost.toFixed(2)} spent
+                            </div>
+                          </div>
                         </div>
                       ))}
                     </div>
@@ -628,10 +679,34 @@ const GoogleAdsDashboard: React.FC = () => {
                   <div>
                     <h4 className="font-medium text-red-600 mb-2">Needs Attention</h4>
                     <div className="space-y-2">
-                      {['cheap marketing', 'free advertising', 'marketing jobs'].map((keyword, index) => (
+                      {loading ? (
+                        // Loading skeleton for needs attention
+                        Array(3).fill(0).map((_, index) => (
+                          <div key={index} className="flex justify-between items-center p-2 bg-gray-100 rounded animate-pulse">
+                            <div className="space-y-2">
+                              <div className="h-4 w-32 bg-gray-200 rounded"></div>
+                              <div className="h-3 w-24 bg-gray-200 rounded"></div>
+                            </div>
+                            <div className="space-y-2">
+                              <div className="h-4 w-16 bg-gray-200 rounded"></div>
+                              <div className="h-3 w-20 bg-gray-200 rounded"></div>
+                            </div>
+                          </div>
+                        ))
+                      ) : data.keywordPerformance?.needsAttention.map((keyword, index) => (
                         <div key={index} className="flex justify-between items-center p-2 bg-red-50 rounded">
-                          <span className="text-sm">{keyword}</span>
-                          <Badge variant="destructive">0.1% CTR</Badge>
+                          <div>
+                            <span className="text-sm font-medium">{keyword.keyword}</span>
+                            <div className="text-xs text-gray-600">
+                              {keyword.clicks} clicks • {keyword.conversions} conv.
+                            </div>
+                          </div>
+                          <div className="text-right">
+                            <Badge variant="destructive">{(keyword.ctr * 100).toFixed(1)}% CTR</Badge>
+                            <div className="text-xs text-gray-600 mt-1">
+                              ${keyword.cost.toFixed(2)} spent
+                            </div>
+                          </div>
                         </div>
                       ))}
                     </div>
