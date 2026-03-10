@@ -12,6 +12,9 @@ import { campaignService } from './campaign-service.js';
 import { mlService } from './ml-service.js';
 import { searchService } from './search-service.js';
 import { getCampaignMetrics, getDateRange } from './campaign-metrics-service.js';
+import { mockCampaigns, mockAnalytics, mockCampaignStats, mockDashboardData, mockInsights, mockCampaignMetrics } from './mock-data.js';
+
+const MOCK_MODE = process.env.MOCK_MODE === 'true';
 
 // Helper function to calculate percentage change
 function calculatePercentageChange(current: number, previous: number): number {
@@ -144,6 +147,16 @@ app.get('/api/campaigns/:id', async (req, res) => {
 // Get all campaigns with stats
 app.get('/api/campaigns', async (req, res) => {
   try {
+    // Return mock data if MOCK_MODE is enabled
+    if (MOCK_MODE) {
+      return res.json({
+        campaigns: mockCampaigns,
+        totalCount: mockCampaigns.length,
+        pageCount: 1,
+        isMockData: true
+      });
+    }
+
     const { startDate, endDate } = req.query;
     
     // Build date filter
@@ -233,6 +246,11 @@ app.get('/api/campaigns', async (req, res) => {
 // Get campaign stats
 app.get('/api/campaigns/stats', async (req, res) => {
   try {
+    // Return mock data if MOCK_MODE is enabled
+    if (MOCK_MODE) {
+      return res.json(mockCampaignStats);
+    }
+
     const { startDate, endDate } = req.query;
     
     // Build date filter
@@ -396,6 +414,15 @@ app.post('/api/chat/command', async (req, res) => {
 // Google Ads API Endpoints
 app.get('/api/google-ads/dashboard', async (req, res) => {
   try {
+    // Return mock data if MOCK_MODE is enabled
+    if (MOCK_MODE) {
+      return res.json({
+        success: true,
+        data: mockDashboardData,
+        isMockData: true
+      });
+    }
+
     const { timeframe = '30d' } = req.query;
     const userId = req.headers['user-id'] as string || 'default-user-id';
     const accountId = '8936153023'; // From config - in real app, get from user
@@ -1593,6 +1620,43 @@ async function executePythonAutomation(
 // Analytics endpoints with date filtering (like Google Ads)
 app.get('/api/analytics', async (req, res) => {
   try {
+    // Return mock data if MOCK_MODE is enabled
+    if (MOCK_MODE) {
+      const dailyStats = mockAnalytics.map(a => ({
+        date: a.date.toISOString(),
+        impressions: a.impressions,
+        clicks: a.clicks,
+        conversions: a.conversions,
+        cost: a.cost,
+        conversionValue: a.conversionValue,
+        ctr: a.clicks / a.impressions || 0,
+        cpc: a.cost / a.clicks || 0,
+        costPerConversion: a.conversions > 0 ? a.cost / a.conversions : null,
+      }));
+
+      const totalImpressions = mockAnalytics.reduce((sum, a) => sum + a.impressions, 0);
+      const totalClicks = mockAnalytics.reduce((sum, a) => sum + a.clicks, 0);
+      const totalConversions = mockAnalytics.reduce((sum, a) => sum + a.conversions, 0);
+      const totalCost = mockAnalytics.reduce((sum, a) => sum + a.cost, 0);
+      const totalValue = mockAnalytics.reduce((sum, a) => sum + a.conversionValue, 0);
+
+      return res.json({
+        dailyStats,
+        totalStats: {
+          totalImpressions: totalImpressions.toLocaleString(),
+          totalClicks: totalClicks.toLocaleString(),
+          totalConversions: totalConversions.toLocaleString(),
+          totalCost: `$${totalCost.toFixed(2)}`,
+          revenue: `$${totalValue.toFixed(2)}`,
+          conversionRate: `${((totalConversions / totalClicks) * 100 || 0).toFixed(2)}%`,
+          avgCTR: `${((totalClicks / totalImpressions) * 100 || 0).toFixed(2)}%`,
+          avgCPC: `$${((totalCost / totalClicks) || 0).toFixed(2)}`,
+          costPerConversion: totalConversions > 0 ? `$${(totalCost / totalConversions).toFixed(2)}` : '-',
+        },
+        isMockData: true
+      });
+    }
+
     const { startDate, endDate } = req.query;
     
     // Build date filter
@@ -1679,6 +1743,34 @@ app.get('/api/analytics', async (req, res) => {
 
 app.get('/api/analytics/stats', async (req, res) => {
   try {
+    // Return mock data if MOCK_MODE is enabled
+    if (MOCK_MODE) {
+      const totalImpressions = mockAnalytics.reduce((sum, a) => sum + a.impressions, 0);
+      const totalClicks = mockAnalytics.reduce((sum, a) => sum + a.clicks, 0);
+      const totalConversions = mockAnalytics.reduce((sum, a) => sum + a.conversions, 0);
+      const totalCost = mockAnalytics.reduce((sum, a) => sum + a.cost, 0);
+      const totalValue = mockAnalytics.reduce((sum, a) => sum + a.conversionValue, 0);
+
+      const current = {
+        totalImpressions: totalImpressions.toLocaleString(),
+        totalClicks: totalClicks.toLocaleString(),
+        totalConversions: totalConversions.toLocaleString(),
+        totalCost: `$${totalCost.toFixed(2)}`,
+        conversionRate: `${((totalConversions / totalClicks) * 100 || 0).toFixed(2)}%`,
+        avgCTR: `${((totalClicks / totalImpressions) * 100 || 0).toFixed(2)}%`,
+        avgCPC: `$${((totalCost / totalClicks) || 0).toFixed(2)}`,
+        costPerConversion: totalConversions > 0 ? `$${(totalCost / totalConversions).toFixed(2)}` : '-',
+        revenue: `$${totalValue.toFixed(2)}`,
+      };
+
+      return res.json({
+        current,
+        previous: mockCampaignStats.previous,
+        comparison: mockCampaignStats.comparison,
+        isMockData: true
+      });
+    }
+
     const { startDate, endDate } = req.query;
     
     // Build date filter
@@ -2095,6 +2187,22 @@ app.get('/api/campaigns/:id', async (req, res) => {
 // Insights endpoints
 app.get('/api/insights', async (req, res) => {
   try {
+    // Return mock data if MOCK_MODE is enabled
+    if (MOCK_MODE) {
+      const insights = mockCampaigns.slice(0, 5).map((campaign, index) => ({
+        id: `insight-${index + 1}`,
+        type: index % 2 === 0 ? 'PERFORMANCE_ANALYSIS' : 'BUDGET_OPTIMIZATION',
+        title: `Insight for ${campaign.name}`,
+        description: `Campaign has ${campaign.stats.ctr > 0.05 ? 'high' : 'low'} CTR (${(campaign.stats.ctr * 100).toFixed(2)}%) and ${campaign.stats.conversionRate > 0.02 ? 'good' : 'poor'} conversion rate (${(campaign.stats.conversionRate * 100).toFixed(2)}%).`,
+        priority: campaign.stats.ctr < 0.02 || campaign.stats.conversionRate < 0.01 ? 'HIGH' : 'MEDIUM',
+        campaignId: campaign.id,
+        campaign: { name: campaign.name },
+        createdAt: new Date(),
+        updatedAt: new Date()
+      }));
+      return res.json(insights);
+    }
+
     // Generate insights based on campaign data
     const campaigns = await prisma.campaign.findMany({
       include: {
@@ -2140,6 +2248,17 @@ app.get('/api/insights', async (req, res) => {
 
 app.get('/api/insights/stats', async (req, res) => {
   try {
+    // Return mock data if MOCK_MODE is enabled
+    if (MOCK_MODE) {
+      return res.json({
+        totalInsights: mockInsights.totalCampaigns * 3,
+        highPriority: Math.round(mockInsights.totalCampaigns * 1.2),
+        opportunities: Math.round(mockInsights.totalCampaigns * 1.8),
+        avgConfidence: 87,
+        isMockData: true
+      });
+    }
+
     // Get campaign count to generate insight stats
     const campaignCount = await prisma.campaign.count();
     
@@ -2875,6 +2994,23 @@ app.get('/api/search', async (req, res) => {
 // Campaign Metrics endpoints
 app.get('/api/campaign-metrics', async (req, res) => {
   try {
+    // Return mock data if MOCK_MODE is enabled
+    if (MOCK_MODE) {
+      return res.json({
+        metrics: mockCampaignMetrics.metrics,
+        summary: mockCampaignMetrics.summary,
+        dateRange: {
+          start: mockAnalytics[0]?.date.toISOString() || new Date().toISOString(),
+          end: mockAnalytics[mockAnalytics.length - 1]?.date.toISOString() || new Date().toISOString(),
+          availableRange: {
+            start: mockAnalytics[0]?.date.toISOString() || new Date().toISOString(),
+            end: mockAnalytics[mockAnalytics.length - 1]?.date.toISOString() || new Date().toISOString()
+          }
+        },
+        isMockData: true
+      });
+    }
+
     const { startDate, endDate, campaignName } = req.query;
     
     // Get the available date range
