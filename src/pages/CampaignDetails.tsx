@@ -1,7 +1,7 @@
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
-import { 
+import {
   ArrowLeft,
   TrendingUp,
   Eye,
@@ -32,6 +32,7 @@ import { useParams, useNavigate } from 'react-router-dom';
 import { useDateRangeContext } from '@/contexts/date-range-context';
 import type { DateRangeParams } from '@/hooks/use-date-range';
 import { format, parseISO } from 'date-fns';
+import { mockCampaignDetailsMap, mockDefaultCampaignDetails } from '@/lib/mock-data';
 
 interface CampaignAnalytics {
   date: string;
@@ -56,17 +57,13 @@ interface CampaignDetails {
   analytics: CampaignAnalytics[];
 }
 
-// API function to fetch campaign details
-const fetchCampaignDetails = async (campaignId: string, dateParams?: DateRangeParams): Promise<CampaignDetails> => {
-  const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || 'http://localhost:3001';
-  const queryString = dateParams ? `?${new URLSearchParams(dateParams as any).toString()}` : '';
-  const response = await fetch(`${API_BASE_URL}/api/campaigns/${campaignId}${queryString}`);
-  
-  if (!response.ok) {
-    throw new Error('Failed to fetch campaign details');
-  }
-  
-  return response.json();
+// Retrieve campaign details from local mock data
+
+const fetchCampaignDetails = async (campaignId: string, _dateParams?: DateRangeParams): Promise<CampaignDetails> => {
+  // Simulate a brief async operation for realistic UX
+  await new Promise((resolve) => setTimeout(resolve, 300));
+  const found = mockCampaignDetailsMap[campaignId];
+  return found ?? { ...mockDefaultCampaignDetails, id: campaignId };
 };
 
 const getStatusColor = (status: string) => {
@@ -282,25 +279,25 @@ const CampaignDetails = () => {
                 <CartesianGrid strokeDasharray="3 3" stroke="hsl(var(--border))" />
                 <XAxis dataKey="date" stroke="hsl(var(--muted-foreground))" />
                 <YAxis stroke="hsl(var(--muted-foreground))" />
-                <Tooltip 
+                <Tooltip
                   contentStyle={{
                     backgroundColor: 'hsl(var(--card))',
                     border: '1px solid hsl(var(--border))',
                     borderRadius: '8px'
                   }}
                 />
-                <Line 
-                  type="monotone" 
-                  dataKey="impressions" 
-                  stroke="hsl(var(--primary))" 
+                <Line
+                  type="monotone"
+                  dataKey="impressions"
+                  stroke="hsl(var(--primary))"
                   strokeWidth={3}
                   dot={{ fill: 'hsl(var(--primary))' }}
                   name="Impressions"
                 />
-                <Line 
-                  type="monotone" 
-                  dataKey="clicks" 
-                  stroke="hsl(var(--accent-purple))" 
+                <Line
+                  type="monotone"
+                  dataKey="clicks"
+                  stroke="hsl(var(--accent-purple))"
                   strokeWidth={3}
                   dot={{ fill: 'hsl(var(--accent-purple))' }}
                   name="Clicks"
@@ -324,21 +321,21 @@ const CampaignDetails = () => {
                 <CartesianGrid strokeDasharray="3 3" stroke="hsl(var(--border))" />
                 <XAxis dataKey="date" stroke="hsl(var(--muted-foreground))" />
                 <YAxis stroke="hsl(var(--muted-foreground))" />
-                <Tooltip 
+                <Tooltip
                   contentStyle={{
                     backgroundColor: 'hsl(var(--card))',
                     border: '1px solid hsl(var(--border))',
                     borderRadius: '8px'
                   }}
                 />
-                <Bar 
-                  dataKey="cost" 
+                <Bar
+                  dataKey="cost"
                   fill="hsl(var(--destructive))"
                   radius={[4, 4, 0, 0]}
                   name="Cost ($)"
                 />
-                <Bar 
-                  dataKey="conversionValue" 
+                <Bar
+                  dataKey="conversionValue"
                   fill="hsl(var(--success))"
                   radius={[4, 4, 0, 0]}
                   name="Revenue ($)"
@@ -362,17 +359,17 @@ const CampaignDetails = () => {
                 <CartesianGrid strokeDasharray="3 3" stroke="hsl(var(--border))" />
                 <XAxis dataKey="date" stroke="hsl(var(--muted-foreground))" />
                 <YAxis stroke="hsl(var(--muted-foreground))" />
-                <Tooltip 
+                <Tooltip
                   contentStyle={{
                     backgroundColor: 'hsl(var(--card))',
                     border: '1px solid hsl(var(--border))',
                     borderRadius: '8px'
                   }}
                 />
-                <Area 
-                  type="monotone" 
-                  dataKey="conversions" 
-                  stroke="hsl(var(--success))" 
+                <Area
+                  type="monotone"
+                  dataKey="conversions"
+                  stroke="hsl(var(--success))"
                   fill="hsl(var(--success))"
                   fillOpacity={0.6}
                   name="Conversions"
@@ -406,7 +403,7 @@ const CampaignDetails = () => {
                     <Cell key={`cell-${index}`} fill={entry.color} />
                   ))}
                 </Pie>
-                <Tooltip 
+                <Tooltip
                   formatter={(value: any) => [value.toLocaleString(), '']}
                   contentStyle={{
                     backgroundColor: 'hsl(var(--card))',

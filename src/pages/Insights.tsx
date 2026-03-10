@@ -5,7 +5,8 @@ import { AnimatePresence, motion } from "framer-motion";
 import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
-import { 
+import { mockCampaignsResponse, mockAnalyticsStatsCurrent } from "@/lib/mock-data";
+import {
   Brain,
   TrendingUp,
   AlertTriangle,
@@ -23,7 +24,7 @@ import type { Insight } from '@/types/api';
 // Helper function to render different types of insights
 const renderInsightContent = (type: string, data: any) => {
   if (!data) return <p>No data available</p>;
-  
+
   // Handle raw response format
   if (data.rawResponse) {
     return (
@@ -35,7 +36,7 @@ const renderInsightContent = (type: string, data: any) => {
       </div>
     );
   }
-  
+
   // Render based on insight type
   switch (type) {
     case 'opportunity':
@@ -61,7 +62,7 @@ const renderInsightContent = (type: string, data: any) => {
           ))}
         </div>
       ) : <p>No opportunities found</p>;
-      
+
     case 'alert':
       return data.warnings ? (
         <div className="space-y-6">
@@ -85,7 +86,7 @@ const renderInsightContent = (type: string, data: any) => {
           ))}
         </div>
       ) : <p>No warnings found</p>;
-      
+
     case 'insight':
       return data.insights ? (
         <div className="space-y-6">
@@ -109,7 +110,7 @@ const renderInsightContent = (type: string, data: any) => {
           ))}
         </div>
       ) : <p>No insights found</p>;
-      
+
     case 'recommendation':
       return data.recommendations ? (
         <div className="space-y-6">
@@ -133,7 +134,7 @@ const renderInsightContent = (type: string, data: any) => {
           ))}
         </div>
       ) : <p>No recommendations found</p>;
-      
+
     case 'success':
       return data.successStories ? (
         <div className="space-y-6">
@@ -156,7 +157,7 @@ const renderInsightContent = (type: string, data: any) => {
           ))}
         </div>
       ) : <p>No success stories found</p>;
-      
+
     case 'analysis':
       return data.trends ? (
         <div className="space-y-6">
@@ -180,7 +181,7 @@ const renderInsightContent = (type: string, data: any) => {
           ))}
         </div>
       ) : <p>No trends found</p>;
-      
+
     default:
       // Try to render any JSON structure
       return (
@@ -228,61 +229,47 @@ export const LayoutGrid = ({ cards }: { cards: Card[] }) => {
 
   const handleClick = async (card: Card) => {
     setLastSelected(selected);
-    
+
     // If we're clicking the same card, just close it
     if (selected?.id === card.id) {
       setSelected(null);
       return;
     }
-    
+
     // Show loading state
     setLoading(card.id);
-    
+
     try {
       console.log(`Generating insights for card type: ${card.type}`);
-      
-      // Get campaign data for context
-      let campaignData;
-      try {
-        const campaignsResponse = await fetch(`${import.meta.env.VITE_API_BASE_URL || 'http://localhost:3001'}/api/campaigns`);
-        campaignData = await campaignsResponse.json();
-        console.log('Campaign data for context:', campaignData.slice(0, 2));
-      } catch (error) {
-        console.warn('Could not fetch campaign data:', error);
-      }
-      
-      // Get analytics data for context
-      let analyticsData;
-      try {
-        const analyticsResponse = await fetch(`${import.meta.env.VITE_API_BASE_URL || 'http://localhost:3001'}/api/analytics/stats`);
-        analyticsData = await analyticsResponse.json();
-        console.log('Analytics data for context:', analyticsData);
-      } catch (error) {
-        console.warn('Could not fetch analytics data:', error);
-      }
-      
+
+      // Get campaign data for context (using mock data)
+      let campaignData = mockCampaignsResponse.campaigns;
+
+      // Get analytics data for context (using mock data)
+      let analyticsData = mockAnalyticsStatsCurrent;
+
       // Call the API to generate insights
       const response = await insightsApi.generateInsightFromEssays(card.type, campaignData, analyticsData);
       console.log(`Generated ${card.type} insights:`, response);
-      
+
       // Update the card content with the generated insights
-      const updatedCard = { 
+      const updatedCard = {
         ...card,
         content: (
-                        <div className="space-y-6 p-6 max-h-[80vh] overflow-y-auto">
-                <h2 className="text-2xl font-bold">{card.title}</h2>
-                <div className="prose prose-invert">
-                  {renderInsightContent(card.type, response.response)}
-                </div>
-                <p className="text-sm opacity-70 mt-4 text-center">Generated from analysis of marketing expert essays</p>
-              </div>
+          <div className="space-y-6 p-6 max-h-[80vh] overflow-y-auto">
+            <h2 className="text-2xl font-bold">{card.title}</h2>
+            <div className="prose prose-invert">
+              {renderInsightContent(card.type, response.response)}
+            </div>
+            <p className="text-sm opacity-70 mt-4 text-center">Generated from analysis of marketing expert essays</p>
+          </div>
         )
       };
-      
+
       setSelected(updatedCard);
     } catch (error) {
       console.error('Error generating insights:', error);
-      
+
       // Get detailed error information
       let errorDetails = '';
       if (error.response) {
@@ -295,7 +282,7 @@ export const LayoutGrid = ({ cards }: { cards: Card[] }) => {
           errorDetails = `Status: ${error.response.status} ${error.response.statusText}`;
         }
       }
-      
+
       // Show error in card
       const errorCard = {
         ...card,
@@ -310,7 +297,7 @@ export const LayoutGrid = ({ cards }: { cards: Card[] }) => {
           </div>
         )
       };
-      
+
       setSelected(errorCard);
     } finally {
       setLoading(null);
@@ -333,11 +320,11 @@ export const LayoutGrid = ({ cards }: { cards: Card[] }) => {
               selected?.id === card.id
                 ? "rounded-lg absolute inset-0 h-[80vh] w-full md:w-[80%] lg:w-[70%] m-auto z-50 flex justify-center items-center flex-wrap flex-col"
                 : lastSelected?.id === card.id
-                ? "z-40 rounded-xl h-full w-full"
-                : "rounded-xl h-full w-full min-h-[200px]"
+                  ? "z-40 rounded-xl h-full w-full"
+                  : "rounded-xl h-full w-full min-h-[200px]"
             )}
             layoutId={`card-${card.id}`}
-            style={{ 
+            style={{
               backgroundColor: card.color,
               opacity: loading === card.id ? 0.7 : 1
             }}
@@ -510,7 +497,7 @@ const Insights = () => {
       icon: <Brain size={36} />
     },
   ];
-  
+
   return (
     <div className="space-y-6">
       {/* Header */}
@@ -525,7 +512,7 @@ const Insights = () => {
 
       {/* Card Grid */}
       <LayoutGrid cards={insightCards} />
-      
+
       {/* Source Information */}
       <div className="mt-8 text-center text-sm text-muted-foreground">
         <p>Insights generated from essays by Tim Davidson, Stan Woods, Silvio, Richard van der Blom, April Dunford, and others</p>

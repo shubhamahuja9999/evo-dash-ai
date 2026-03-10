@@ -1,15 +1,14 @@
-import axios from 'axios';
 import { format } from 'date-fns';
+import {
+  mockAnalyticsData,
+  mockAnalyticsStatsCurrent,
+  mockAnalyticsStatsWithComparison,
+  mockTrafficSources,
+  mockCampaignsResponse,
+  mockInsightsByType,
+} from './mock-data';
 
-const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || 'http://localhost:3001';
-
-// Create axios instance
-export const api = axios.create({
-  baseURL: API_BASE_URL,
-  headers: {
-    'Content-Type': 'application/json',
-  },
-});
+// ─── Helpers (kept for any consumers that import them) ─────────────────────
 
 // Helper function to calculate percentage change
 const calculatePercentageChange = (current: number, previous: number): number => {
@@ -25,11 +24,11 @@ const formatDateForAPI = (date: Date): string => {
 // Helper function to build query string
 const buildQueryString = (params: DateRangeParams): string => {
   const searchParams = new URLSearchParams()
-  
+
   if (params.startDate) searchParams.append('startDate', params.startDate)
   if (params.endDate) searchParams.append('endDate', params.endDate)
   if (params.dateRange) searchParams.append('dateRange', params.dateRange)
-  
+
   const queryString = searchParams.toString()
   return queryString ? `?${queryString}` : ''
 }
@@ -40,220 +39,164 @@ export interface DateRangeParams {
   dateRange?: string
 }
 
-// Campaign Metrics API
+// ─── Campaign Metrics API ─────────────────────────────────────────────────────
+
 export const campaignMetricsApi = {
-  getCampaignMetrics: async (dateParams?: DateRangeParams) => {
-    const queryString = dateParams ? buildQueryString(dateParams) : ''
-    const response = await api.get(`/api/campaign-metrics${queryString}`);
-    return response.data;
+  getCampaignMetrics: async (_dateParams?: DateRangeParams) => {
+    return Promise.resolve(mockCampaignsResponse.campaigns);
   },
 
   getCampaignNames: async () => {
-    const response = await api.get('/api/campaign-metrics/campaigns');
-    return response.data;
+    return Promise.resolve(
+      mockCampaignsResponse.campaigns.map((c) => ({ id: c.id, name: c.name }))
+    );
   },
 
   getDateRange: async () => {
-    const response = await api.get('/api/campaign-metrics/date-range');
-    return response.data;
-  }
+    return Promise.resolve({ startDate: '2025-01-01', endDate: '2025-12-31' });
+  },
 };
 
-// Analytics API
+// ─── Analytics API ────────────────────────────────────────────────────────────
+
 export const analyticsApi = {
-  getAnalytics: async (dateParams?: DateRangeParams) => {
-    const queryString = dateParams ? buildQueryString(dateParams) : ''
-    const response = await api.get(`/api/analytics${queryString}`);
-    return response.data;
+  getAnalytics: async (_dateParams?: DateRangeParams) => {
+    return Promise.resolve(mockAnalyticsData);
   },
 
-  getStats: async (dateParams?: DateRangeParams) => {
-    const queryString = dateParams ? buildQueryString(dateParams) : ''
-    const response = await api.get(`/api/analytics/stats${queryString}`);
-    return response.data;
+  getStats: async (_dateParams?: DateRangeParams) => {
+    return Promise.resolve(mockAnalyticsStatsCurrent);
   },
 
   // Method to fetch both current and previous period data for comparison
-  getStatsWithComparison: async (currentParams: DateRangeParams, previousParams?: DateRangeParams) => {
-    const currentPromise = analyticsApi.getStats(currentParams)
-    const previousPromise = previousParams ? analyticsApi.getStats(previousParams) : Promise.resolve(null)
-    
-    const [current, previous] = await Promise.all([currentPromise, previousPromise])
-    
-    return {
-      current,
-      previous,
-      comparison: previous ? {
-        totalUsers: calculatePercentageChange(
-          parseInt(current.totalUsers.replace(/,/g, '')), 
-          parseInt(previous.totalUsers.replace(/,/g, ''))
-        ),
-        revenue: calculatePercentageChange(
-          parseFloat(current.revenue.replace(/[₹,]/g, '')),
-          parseFloat(previous.revenue.replace(/[₹,]/g, ''))
-        ),
-        conversionRate: calculatePercentageChange(
-          parseFloat(current.conversionRate.replace('%', '')),
-          parseFloat(previous.conversionRate.replace('%', ''))
-        ),
-      } : null
-    }
+  getStatsWithComparison: async (
+    _currentParams: DateRangeParams,
+    _previousParams?: DateRangeParams
+  ) => {
+    return Promise.resolve(mockAnalyticsStatsWithComparison);
   },
 
   getTrafficSources: async () => {
-    const response = await api.get('/api/traffic-sources');
-    return response.data;
+    return Promise.resolve(mockTrafficSources);
   },
 };
 
-// Campaigns API
+// ─── Campaigns API ────────────────────────────────────────────────────────────
+
 export const campaignsApi = {
-  getCampaigns: async (dateParams?: DateRangeParams) => {
-    const queryString = dateParams ? buildQueryString(dateParams) : ''
-    const response = await api.get(`/api/campaigns${queryString}`);
-    return response.data;
-  },
-  
-  // Force a campaign fetch
-  forceFetch: async () => {
-    const response = await api.post('/api/campaigns/fetch');
-    return response.data;
-  },
-  
-  // Get last fetch time
-  getLastFetchTime: async () => {
-    const response = await api.get('/api/campaigns/last-fetch');
-    return response.data;
+  getCampaigns: async (_dateParams?: DateRangeParams) => {
+    return Promise.resolve(mockCampaignsResponse);
   },
 
-  getStats: async (dateParams?: DateRangeParams) => {
-    const queryString = dateParams ? buildQueryString(dateParams) : ''
-    const response = await api.get(`/api/campaigns/stats${queryString}`);
-    return response.data;
+  // Force a campaign fetch (no-op in mock mode)
+  forceFetch: async () => {
+    return Promise.resolve({ success: true, message: 'Mock fetch completed' });
+  },
+
+  // Get last fetch time
+  getLastFetchTime: async () => {
+    return Promise.resolve({ lastFetchTime: new Date().toISOString() });
+  },
+
+  getStats: async (_dateParams?: DateRangeParams) => {
+    return Promise.resolve({
+      totalConversions: '3,105',
+      totalImpressions: '6,20,600',
+      avgCTR: '7.87%',
+      avgCPC: '₹12.29',
+      totalCost: '₹5,13,000',
+      conversionRate: '5.00%',
+      costPerConversion: '₹165.23',
+      totalClicks: '51,470',
+    });
   },
 
   // Method to fetch both current and previous period data for comparison
-  getStatsWithComparison: async (currentParams: DateRangeParams, previousParams?: DateRangeParams) => {
-    const currentPromise = campaignsApi.getStats(currentParams)
-    const previousPromise = previousParams ? campaignsApi.getStats(previousParams) : Promise.resolve(null)
-    
-    const [current, previous] = await Promise.all([currentPromise, previousPromise])
-    
-    return {
+  getStatsWithComparison: async (
+    _currentParams: DateRangeParams,
+    _previousParams?: DateRangeParams
+  ) => {
+    const current = await campaignsApi.getStats(_currentParams);
+    return Promise.resolve({
       current,
-      previous,
-      comparison: previous ? {
-        totalConversions: calculatePercentageChange(
-          parseInt(current.totalConversions.replace(/,/g, '')), 
-          parseInt(previous.totalConversions.replace(/,/g, ''))
-        ),
-        totalImpressions: calculatePercentageChange(
-          parseInt(current.totalImpressions.replace(/,/g, '')),
-          parseInt(previous.totalImpressions.replace(/,/g, ''))
-        ),
-        avgCTR: calculatePercentageChange(
-          parseFloat(current.avgCTR.replace('%', '')),
-          parseFloat(previous.avgCTR.replace('%', ''))
-        ),
-      } : null
-    }
+      previous: null,
+      comparison: null,
+    });
   },
 };
 
-// Insights API
+// ─── Insights API ─────────────────────────────────────────────────────────────
+
 export const insightsApi = {
   getInsights: async () => {
-    const response = await api.get('/api/insights');
-    return response.data;
+    return Promise.resolve(Object.values(mockInsightsByType));
   },
 
   getStats: async () => {
-    const response = await api.get('/api/insights/stats');
-    return response.data;
+    return Promise.resolve({
+      totalInsights: 6,
+      lastGenerated: new Date().toISOString(),
+    });
   },
-  
+
   // Get AI-generated insights from essays
   getEssayInsights: async () => {
-    const response = await api.get('/api/insights/essays');
-    return response.data;
+    return Promise.resolve(Object.entries(mockInsightsByType).map(([type, data]) => ({
+      type,
+      data,
+    })));
   },
-  
+
   // Get AI-generated insights stats from essays
   getEssayInsightStats: async () => {
-    const response = await api.get('/api/insights/essays/stats');
-    return response.data;
+    return Promise.resolve({
+      totalEssays: 6,
+      insightsGenerated: Object.keys(mockInsightsByType).length,
+    });
   },
-  
-  // Generate insights from essays based on type
-  generateInsightFromEssays: async (insightType: string, campaignData?: any, analyticsData?: any) => {
-    console.log(`Generating ${insightType} insights from essays`, { campaignData, analyticsData });
-    
-    try {
-      const response = await api.post('/api/insights/generate', {
-        insightType,
-        campaignData,
-        analyticsData
-      });
-      
-      console.log(`Generated ${insightType} insights:`, response.data);
-      return response.data;
-    } catch (error) {
-      console.error('Error generating insights:', error);
-      throw error;
-    }
+
+  // Generate insights from essays based on type (returns mock data for the type)
+  generateInsightFromEssays: async (
+    insightType: string,
+    _campaignData?: any,
+    _analyticsData?: any
+  ) => {
+    // Simulate a small async delay for realistic UX
+    await new Promise((resolve) => setTimeout(resolve, 600));
+    const mockResponse = mockInsightsByType[insightType] ?? {
+      message: 'No mock data for this insight type',
+    };
+    return { response: mockResponse };
   },
 };
 
-// Health check
+// ─── Health check ─────────────────────────────────────────────────────────────
+
 export const healthApi = {
   checkHealth: async () => {
-    const response = await api.get('/health');
-    return response.data;
+    return Promise.resolve({ status: 'ok', mode: 'mock' });
   },
 };
 
-// CUA (Command User Access) API
+// ─── CUA API (no-op stubs) ────────────────────────────────────────────────────
+
 export const cuaApi = {
-  getCommands: async () => {
-    const response = await api.get('/api/cua/commands');
-    return response.data;
-  },
-
-  executeCommand: async (command: string, description?: string, metadata?: any) => {
-    const response = await api.post('/api/cua/command', {
-      command,
-      description,
-      metadata,
-      userId: 'current-user-id', // This should come from auth context
-    });
-    return response.data;
-  },
-
-  getUsers: async () => {
-    const response = await api.get('/api/cua/users');
-    return response.data;
-  },
-
-  getAudits: async () => {
-    const response = await api.get('/api/cua/audits');
-    return response.data;
-  },
-
-  getLatestAudit: async () => {
-    const response = await api.get('/api/cua/audit/latest');
-    return response.data;
-  },
-  
-  // Python Automation
-  startAutomation: async (script: 'cua_automation.py' | 'fetch_campaigns.py', command?: string) => {
-    return api.post('/api/cua/automation', {
-      script,
-      command
-    });
-  },
-  
-  stopAutomation: async () => {
-    const response = await api.post('/api/cua/automation/stop');
-    return response.data;
-  },
+  getCommands: async () => Promise.resolve([]),
+  executeCommand: async (_command: string, _description?: string, _metadata?: any) =>
+    Promise.resolve({ success: true }),
+  getUsers: async () => Promise.resolve([]),
+  getAudits: async () => Promise.resolve([]),
+  getLatestAudit: async () => Promise.resolve(null),
+  startAutomation: async (_script: 'cua_automation.py' | 'fetch_campaigns.py', _command?: string) =>
+    Promise.resolve({ success: true }),
+  stopAutomation: async () => Promise.resolve({ success: true }),
 };
+
+// Keep the axios instance export for any components that import it directly
+// (it is no longer used internally but external components may reference it)
+import axios from 'axios';
+const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || 'http://localhost:3001';
+export const api = axios.create({
+  baseURL: API_BASE_URL,
+  headers: { 'Content-Type': 'application/json' },
+});
